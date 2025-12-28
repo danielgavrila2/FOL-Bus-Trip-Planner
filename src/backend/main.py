@@ -81,6 +81,10 @@ class RouteSegment(BaseModel):
     departure_time: Optional[str] = None
     arrival_time: Optional[str] = None
     duration_minutes: Optional[int] = None
+    
+    class Config:
+        # Allow automatic conversion from int to str
+        coerce_numbers_to_str = True
 
 class TripResponse(BaseModel):
     success: bool
@@ -143,6 +147,38 @@ def list_routes():
         ]
     }
 
+@app.get("/debug/connections")
+def debug_connections(limit: int = 50):
+    """Debug: Show first N connections"""
+    return {
+        "total_connections": len(graph_builder.connections),
+        "sample_connections": graph_builder.connections[:limit],
+        "stops_count": len(graph_builder.stops),
+        "routes_count": len(graph_builder.routes)
+    }
+
+@app.get("/debug/stop/{stop_identifier}")
+def debug_stop(stop_identifier: str):
+    """Debug: Find stop by name or ID"""
+    stop_id = graph_builder.resolve_stop(stop_identifier)
+    if not stop_id:
+        return {"error": "Stop not found", "searched": stop_identifier}
+    
+    stop = graph_builder.stops[stop_id]
+    
+    # Find outgoing connections
+    outgoing = [c for c in graph_builder.connections if c["from"] == stop_id]
+    incoming = [c for c in graph_builder.connections if c["to"] == stop_id]
+    
+    return {
+        "stop_id": stop_id,
+        "stop_data": stop,
+        "outgoing_connections": len(outgoing),
+        "incoming_connections": len(incoming),
+        "sample_outgoing": outgoing[:10],
+        "sample_incoming": incoming[:10]
+    }
+
 @app.post("/plan", response_model=TripResponse)
 def plan_trip(request: TripRequest):
     """
@@ -152,6 +188,9 @@ def plan_trip(request: TripRequest):
         # Validate and resolve stop names/IDs
         start_stop_id = graph_builder.resolve_stop(request.start_stop)
         end_stop_id = graph_builder.resolve_stop(request.end_stop)
+        
+        logger.info(f"Request: {request.start_stop} -> {request.end_stop}")
+        logger.info(f"Resolved to IDs: {start_stop_id} -> {end_stop_id}")
         
         if not start_stop_id:
             raise HTTPException(status_code=404, detail=f"Start stop '{request.start_stop}' not found")
@@ -163,46 +202,65 @@ def plan_trip(request: TripRequest):
         
         logger.info(f"Planning trip from {start_stop_id} to {end_stop_id}")
         
-        # Step 1: Try Prover9 for reachability proof
+        # Get relevant connections (limit for performance)
+        relevant_connections = graph_builder.connections[:1000]
+        
+        # Step 1: Use Prover9 for reachability with path construction
         fol_input = fol_engine.generate_fol_reachability(
-            stops=list(graph_builder.stops.keys()),
-            connections=graph_builder.connections,
+            stops=list(graph_builder.stops.keys())[:200],
+            connections=relevant_connections,
             start=start_stop_id,
             goal=end_stop_id
         )
         
-        prover9_output = fol_engine.run_prover9(fol_input)
+        logger.info("Running Prover9...")
+        prover9_output = fol_engine.run_prover9(fol_input, timeout=30)
+        
+        path = None
+        proof_method = "None"
         
         if "THEOREM PROVED" in prover9_output:
             proof_method = "Prover9 (Theorem Proved)"
             logger.info("Prover9 proved reachability")
-        else:
-            # Try Mace4 to find a model (counterexample or path)
-            logger.info("Prover9 couldn't prove, trying Mace4...")
-            mace4_output = fol_engine.run_mace4(fol_input)
             
-            if "Exiting with 1 model" in mace4_output or "Model found" in mace4_output:
+            # Try to extract path from proof
+            path = fol_engine.extract_path_from_proof(prover9_output, graph_builder.connections)
+            
+            if not path:
+                # Fallback: use BFS since we know path exists
+                logger.info("Extracting path with BFS (Prover9 confirmed reachability)")
+                path = path_finder.find_optimal_path(
+                    graph_builder.connections,
+                    start_stop_id,
+                    end_stop_id,
+                    prefer_fewer_transfers=request.prefer_fewer_transfers
+                )
+        else:
+            # Try Mace4 to find a model
+            logger.info("Prover9 couldn't prove, trying Mace4...")
+            mace4_output = fol_engine.run_mace4(fol_input, timeout=30)
+            
+            if "Exiting with" in mace4_output or "model" in mace4_output.lower():
                 proof_method = "Mace4 (Model Found)"
                 logger.info("Mace4 found a model")
-            else:
-                return TripResponse(
-                    success=False,
-                    route=[],
-                    total_duration_minutes=0,
-                    total_transfers=0,
-                    total_cost=0.0,
-                    tickets_needed=0,
-                    proof_method="None",
-                    error="No route found between the specified stops"
+                
+                # Extract path from Mace4 model
+                path = fol_engine.extract_path_from_mace4(
+                    mace4_output,
+                    start_stop_id,
+                    end_stop_id,
+                    graph_builder.connections
                 )
-        
-        # Step 2: Find actual path using graph search (BFS/Dijkstra)
-        path = path_finder.find_optimal_path(
-            graph_builder.connections,
-            start_stop_id,
-            end_stop_id,
-            prefer_fewer_transfers=request.prefer_fewer_transfers
-        )
+            else:
+                # Last resort: try BFS directly
+                logger.info("FOL methods failed, using BFS as fallback")
+                proof_method = "BFS (Fallback)"
+                path = path_finder.find_optimal_path(
+                    graph_builder.connections,
+                    start_stop_id,
+                    end_stop_id,
+                    prefer_fewer_transfers=request.prefer_fewer_transfers
+                )
         
         if not path:
             return TripResponse(
@@ -221,9 +279,9 @@ def plan_trip(request: TripRequest):
         total_duration = 0
         
         for i, segment in enumerate(path):
-            from_stop = graph_builder.stops[segment["from"]]
-            to_stop = graph_builder.stops[segment["to"]]
-            route = graph_builder.routes[segment["route"]]
+            from_stop = graph_builder.stops.get(segment["from"], {})
+            to_stop = graph_builder.stops.get(segment["to"], {})
+            route = graph_builder.routes.get(segment["route"], {})
             
             # Estimate travel time (would use real schedules in production)
             duration = segment.get("duration_minutes", 5)
@@ -231,8 +289,8 @@ def plan_trip(request: TripRequest):
             route_segments.append(RouteSegment(
                 from_stop=from_stop.get("stop_name", from_stop.get("name", "Unknown")),
                 to_stop=to_stop.get("stop_name", to_stop.get("name", "Unknown")),
-                route_name=route.get("route_short_name", route.get("short_name", "Unknown")),
-                route_id=route.get("route_id", route.get("id", "")),
+                route_name=str(route.get("route_short_name", route.get("short_name", "Unknown"))),
+                route_id=str(segment["route"]),  # Explicitly convert to string
                 duration_minutes=duration
             ))
             total_duration += duration
