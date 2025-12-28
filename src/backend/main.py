@@ -295,174 +295,344 @@ def check_direct_route(start: str, end: str):
         "message": "No single route connects these stops. Transfers required."
     }
 
+# @app.post("/plan", response_model=TripResponse)
+# def plan_trip(request: TripRequest):
+#     """
+#     Plan a bus trip using FOL reasoning with Prover9/Mace4
+#     """
+#     try:
+#         # Validate and resolve stop names/IDs
+#         start_stop_id = graph_builder.resolve_stop(request.start_stop)
+#         end_stop_id = graph_builder.resolve_stop(request.end_stop)
+        
+#         logger.info(f"Request: {request.start_stop} -> {request.end_stop}")
+#         logger.info(f"Resolved to IDs: {start_stop_id} -> {end_stop_id}")
+        
+#         if not start_stop_id:
+#             raise HTTPException(status_code=404, detail=f"Start stop '{request.start_stop}' not found")
+#         if not end_stop_id:
+#             raise HTTPException(status_code=404, detail=f"End stop '{request.end_stop}' not found")
+        
+#         if start_stop_id == end_stop_id:
+#             raise HTTPException(status_code=400, detail="Start and end stops are the same")
+        
+#         logger.info(f"Planning trip from {start_stop_id} to {end_stop_id}")
+        
+#         # Check if direct route exists first (fastest)
+#         direct_route = graph_builder.can_reach_on_single_route(start_stop_id, end_stop_id)
+        
+#         path = None
+#         proof_method = "None"
+        
+#         if direct_route:
+#             # Direct route found - no need for FOL
+#             logger.info(f"Direct route found: {direct_route['route_name']}")
+#             proof_method = f"Direct Route ({direct_route['route_name']}) - No FOL needed"
+            
+#             # Build path
+#             path = []
+#             stops = direct_route['stops_between']
+#             for i in range(len(stops) - 1):
+#                 for conn in graph_builder.connections:
+#                     if conn['from'] == stops[i] and conn['to'] == stops[i+1] and conn['route'] == direct_route['route_id']:
+#                         path.append(conn)
+#                         break
+#         else:
+#             # Need transfers - use FOL reasoning
+#             logger.info("No direct route, using Prover9 for path planning...")
+            
+#             # Get relevant connections (within reasonable distance)
+#             # relevant_connections = graph_builder.connections[:1000]
+#             relevant_connections = graph_builder.connections
+            
+#             # Step 1: Try Prover9 with step-based path construction
+#             fol_input = fol_engine.generate_fol_for_path_planning(
+#                 connections=relevant_connections,
+#                 start=start_stop_id,
+#                 goal=end_stop_id,
+#                 max_steps=150
+#             )
+            
+#             prover9_output = fol_engine.run_prover9(fol_input, timeout=600, save_input=True)
+            
+#             if "THEOREM PROVED" in prover9_output:
+#                 proof_method = "Prover9 (Theorem Proved)"
+#                 logger.info("✓ Prover9 proved path exists")
+                
+#                 # Try to extract path from proof
+#                 path = fol_engine.extract_path_from_prover9_proof(
+#                     prover9_output,
+#                     graph_builder.connections,
+#                     start_stop_id,
+#                     end_stop_id
+#                 )
+                
+#                 if not path:
+#                     # Extraction failed, but Prover9 confirmed reachability
+#                     # Use optimized BFS
+#                     logger.info("Path extraction from proof failed, using BFS (Prover9 confirmed reachability)")
+#                     proof_method = "Prover9 (Proved) + BFS (Extraction)"
+#                     path = path_finder.find_optimal_path(
+#                         graph_builder.connections,
+#                         start_stop_id,
+#                         end_stop_id,
+#                         prefer_fewer_transfers=request.prefer_fewer_transfers
+#                     )
+#             else:
+#                 # Prover9 failed, try Mace4
+#                 logger.info("Prover9 failed/timeout, trying Mace4...")
+                
+#                 fol_mace4 = fol_engine.generate_fol_with_mace4(
+#                     connections=relevant_connections,
+#                     start=start_stop_id,
+#                     goal=end_stop_id,
+#                     route_patterns=graph_builder.route_patterns
+#                 )
+                
+#                 mace4_output = fol_engine.run_mace4(fol_mace4, timeout=30, save_input=True)
+                
+#                 if "Exiting with" in mace4_output or "model" in mace4_output.lower():
+#                     proof_method = "Mace4 (Model Found)"
+#                     logger.info("✓ Mace4 found satisfying model")
+                    
+#                     # Extract path using Mace4 confirmation
+#                     path = fol_engine.extract_path_from_mace4(
+#                         mace4_output,
+#                         graph_builder.connections,
+#                         start_stop_id,
+#                         end_stop_id,
+#                         graph_builder
+#                     )
+#                 else:
+#                     # Both FOL methods failed, use BFS as last resort
+#                     logger.warning("Both Prover9 and Mace4 failed, using BFS fallback")
+#                     proof_method = "BFS (FOL methods failed)"
+#                     path = path_finder.find_optimal_path(
+#                         graph_builder.connections,
+#                         start_stop_id,
+#                         end_stop_id,
+#                         prefer_fewer_transfers=request.prefer_fewer_transfers
+#                     )
+        
+#         if not path:
+#             return TripResponse(
+#                 success=False,
+#                 route=[],
+#                 total_duration_minutes=0,
+#                 total_transfers=0,
+#                 total_cost=0.0,
+#                 tickets_needed=0,
+#                 proof_method=proof_method,
+#                 error="Route exists but path finding failed"
+#             )
+        
+#         # Step 3: Build route segments
+#         route_segments = []
+#         total_duration = 0
+        
+#         for i, segment in enumerate(path):
+#             from_stop = graph_builder.stops.get(segment["from"], {})
+#             to_stop = graph_builder.stops.get(segment["to"], {})
+#             route = graph_builder.routes.get(segment["route"], {})
+            
+#             # Estimate travel time (would use real schedules in production)
+#             duration = segment.get("duration_minutes", 5)
+            
+#             route_segments.append(RouteSegment(
+#                 from_stop=from_stop.get("stop_name", from_stop.get("name", "Unknown")),
+#                 to_stop=to_stop.get("stop_name", to_stop.get("name", "Unknown")),
+#                 route_name=str(route.get("route_short_name", route.get("short_name", "Unknown"))),
+#                 route_id=str(segment["route"]),  # Explicitly convert to string
+#                 duration_minutes=duration
+#             ))
+#             total_duration += duration
+        
+#         # Step 4: Calculate transfers
+#         transfers = path_finder.count_transfers(path)
+        
+#         # Step 5: Calculate ticket cost
+#         departure_time = datetime.now()
+#         if request.departure_time and request.departure_time != "now":
+#             try:
+#                 departure_time = datetime.fromisoformat(request.departure_time)
+#             except ValueError:
+#                 pass
+        
+#         tickets_needed, total_cost = ticketing_service.calculate_tickets(
+#             total_duration, 
+#             departure_time
+#         )
+        
+#         return TripResponse(
+#             success=True,
+#             route=route_segments,
+#             total_duration_minutes=total_duration,
+#             total_transfers=transfers,
+#             total_cost=total_cost,
+#             tickets_needed=tickets_needed,
+#             proof_method=proof_method
+#         )
+        
+#     except HTTPException:
+#         raise
+#     except Exception as e:
+#         logger.error(f"Error planning trip: {e}", exc_info=True)
+#         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 @app.post("/plan", response_model=TripResponse)
 def plan_trip(request: TripRequest):
     """
-    Plan a bus trip using FOL reasoning with Prover9/Mace4
+    Plan a bus trip using FOL reasoning with Mace4 and Prover9.
     """
     try:
-        # Validate and resolve stop names/IDs
+        # Resolve start/end stops
         start_stop_id = graph_builder.resolve_stop(request.start_stop)
         end_stop_id = graph_builder.resolve_stop(request.end_stop)
-        
-        logger.info(f"Request: {request.start_stop} -> {request.end_stop}")
-        logger.info(f"Resolved to IDs: {start_stop_id} -> {end_stop_id}")
-        
+
         if not start_stop_id:
             raise HTTPException(status_code=404, detail=f"Start stop '{request.start_stop}' not found")
         if not end_stop_id:
             raise HTTPException(status_code=404, detail=f"End stop '{request.end_stop}' not found")
-        
         if start_stop_id == end_stop_id:
             raise HTTPException(status_code=400, detail="Start and end stops are the same")
-        
-        logger.info(f"Planning trip from {start_stop_id} to {end_stop_id}")
-        
-        # Check if direct route exists first (fastest)
-        direct_route = graph_builder.can_reach_on_single_route(start_stop_id, end_stop_id)
-        
-        path = None
+
         proof_method = "None"
-        
+        path = None
+
+        # -----------------------------
+        # Step 1: Check direct route
+        # -----------------------------
+        direct_route = graph_builder.can_reach_on_single_route(start_stop_id, end_stop_id)
         if direct_route:
-            # Direct route found - no need for FOL
-            logger.info(f"Direct route found: {direct_route['route_name']}")
-            proof_method = f"Direct Route ({direct_route['route_name']}) - No FOL needed"
-            
-            # Build path
-            path = []
+            proof_method = f"Direct Route ({direct_route['route_name']})"
             stops = direct_route['stops_between']
+            path = []
             for i in range(len(stops) - 1):
                 for conn in graph_builder.connections:
-                    if conn['from'] == stops[i] and conn['to'] == stops[i+1] and conn['route'] == direct_route['route_id']:
+                    if conn["from"] == stops[i] and conn["to"] == stops[i+1] and conn["route"] == direct_route['route_id']:
                         path.append(conn)
                         break
-        else:
-            # Need transfers - use FOL reasoning
-            logger.info("No direct route, using Prover9 for path planning...")
-            
-            # Get relevant connections (within reasonable distance)
-            # relevant_connections = graph_builder.connections[:1000]
-            relevant_connections = graph_builder.connections
-            
-            # Step 1: Try Prover9 with step-based path construction
-            fol_input = fol_engine.generate_fol_for_path_planning(
-                connections=relevant_connections,
-                start=start_stop_id,
-                goal=end_stop_id,
-                max_steps=150
-            )
-            
-            prover9_output = fol_engine.run_prover9(fol_input, timeout=600, save_input=True)
-            
-            if "THEOREM PROVED" in prover9_output:
-                proof_method = "Prover9 (Theorem Proved)"
-                logger.info("✓ Prover9 proved path exists")
-                
-                # Try to extract path from proof
-                path = fol_engine.extract_path_from_prover9_proof(
-                    prover9_output,
-                    graph_builder.connections,
-                    start_stop_id,
-                    end_stop_id
-                )
-                
-                if not path:
-                    # Extraction failed, but Prover9 confirmed reachability
-                    # Use optimized BFS
-                    logger.info("Path extraction from proof failed, using BFS (Prover9 confirmed reachability)")
-                    proof_method = "Prover9 (Proved) + BFS (Extraction)"
-                    path = path_finder.find_optimal_path(
-                        graph_builder.connections,
-                        start_stop_id,
-                        end_stop_id,
-                        prefer_fewer_transfers=request.prefer_fewer_transfers
-                    )
-            else:
-                # Prover9 failed, try Mace4
-                logger.info("Prover9 failed/timeout, trying Mace4...")
-                
-                fol_mace4 = fol_engine.generate_fol_with_mace4(
-                    connections=relevant_connections,
-                    start=start_stop_id,
-                    goal=end_stop_id,
-                    route_patterns=graph_builder.route_patterns
-                )
-                
-                mace4_output = fol_engine.run_mace4(fol_mace4, timeout=30, save_input=True)
-                
-                if "Exiting with" in mace4_output or "model" in mace4_output.lower():
-                    proof_method = "Mace4 (Model Found)"
-                    logger.info("✓ Mace4 found satisfying model")
-                    
-                    # Extract path using Mace4 confirmation
-                    path = fol_engine.extract_path_from_mace4(
-                        mace4_output,
-                        graph_builder.connections,
-                        start_stop_id,
-                        end_stop_id,
-                        graph_builder
-                    )
-                else:
-                    # Both FOL methods failed, use BFS as last resort
-                    logger.warning("Both Prover9 and Mace4 failed, using BFS fallback")
-                    proof_method = "BFS (FOL methods failed)"
-                    path = path_finder.find_optimal_path(
-                        graph_builder.connections,
-                        start_stop_id,
-                        end_stop_id,
-                        prefer_fewer_transfers=request.prefer_fewer_transfers
-                    )
-        
+
+        # -----------------------------
+        # Step 2: Use Mace4 to check existence
+        # -----------------------------
+
+        # if not path:
+        #     fol_mace4 = fol_engine.generate_fol_existence(
+        #         connections=graph_builder.connections,
+        #         start=start_stop_id,
+        #         goal=end_stop_id
+        #     )
+        #     mace4_output = fol_engine.run_mace4(fol_mace4, timeout=30, save_input=True)
+
+        #     if "Exiting" in mace4_output or "model" in mace4_output.lower():
+        #         proof_method = "Mace4 (Path Exists)"
+        #         # Use BFS to get actual path
+        #         path = path_finder.find_optimal_path(
+        #             graph_builder.connections,
+        #             start_stop_id,
+        #             end_stop_id,
+        #             prefer_fewer_transfers=request.prefer_fewer_transfers
+        #         )
+        #     else:
+        #         # As last resort, BFS
+        #         proof_method = "BFS (FOL failed)"
+        #         path = path_finder.find_optimal_path(
+        #             graph_builder.connections,
+        #             start_stop_id,
+        #             end_stop_id,
+        #             prefer_fewer_transfers=request.prefer_fewer_transfers
+        #         )
+
+        # if not path:
+        #     return TripResponse(
+        #         success=False,
+        #         route=[],
+        #         total_duration_minutes=0,
+        #         total_transfers=0,
+        #         total_cost=0.0,
+        #         tickets_needed=0,
+        #         proof_method=proof_method,
+        #         error="No path found"
+        #     )
+
         if not path:
-            return TripResponse(
-                success=False,
-                route=[],
-                total_duration_minutes=0,
-                total_transfers=0,
-                total_cost=0.0,
-                tickets_needed=0,
-                proof_method=proof_method,
-                error="Route exists but path finding failed"
+            # Get a candidate path first (BFS) to reduce node set for Mace4
+            candidate_path = path_finder.find_optimal_path(
+                graph_builder.connections,
+                start_stop_id,
+                end_stop_id,
+                prefer_fewer_transfers=request.prefer_fewer_transfers
             )
-        
-        # Step 3: Build route segments
+
+            if candidate_path:
+                # Generate FOL for Mace4 with only relevant nodes and optional direct routes
+                fol_mace4 = fol_engine.generate_fol_existence(
+                    path=candidate_path,
+                    include_direct_routes=True
+                )
+                mace4_output = fol_engine.run_mace4(fol_mace4, timeout=max(30, len(candidate_path) * 2), save_input=True)
+
+                # If Mace4 finds a model, path exists
+                if "Exiting" in mace4_output or "model" in mace4_output.lower():
+                    proof_method = "Mace4 (Path Exists)"
+                    path = candidate_path
+                else:
+                    # Last resort: BFS only
+                    proof_method = "BFS (FOL failed)"
+                    path = candidate_path
+            else:
+                proof_method = "BFS (No candidate path)"
+                path = candidate_path
+
+
+        # -----------------------------
+        # Step 3: Verify path with Prover9
+        # -----------------------------
+        fol_prover9 = fol_engine.generate_fol_verification(path)
+        prover9_output = fol_engine.run_prover9(fol_prover9, timeout=60, save_input=True)
+        if "THEOREM PROVED" in prover9_output:
+            proof_method += " + Prover9 Verified"
+        else:
+            proof_method += " + Prover9 Verification Failed"
+
+        # -----------------------------
+        # Step 4: Build RouteSegments
+        # -----------------------------
         route_segments = []
         total_duration = 0
-        
-        for i, segment in enumerate(path):
+        for segment in path:
             from_stop = graph_builder.stops.get(segment["from"], {})
             to_stop = graph_builder.stops.get(segment["to"], {})
             route = graph_builder.routes.get(segment["route"], {})
-            
-            # Estimate travel time (would use real schedules in production)
+
             duration = segment.get("duration_minutes", 5)
-            
+            total_duration += duration
+
             route_segments.append(RouteSegment(
                 from_stop=from_stop.get("stop_name", from_stop.get("name", "Unknown")),
                 to_stop=to_stop.get("stop_name", to_stop.get("name", "Unknown")),
                 route_name=str(route.get("route_short_name", route.get("short_name", "Unknown"))),
-                route_id=str(segment["route"]),  # Explicitly convert to string
+                route_id=str(segment["route"]),
                 duration_minutes=duration
             ))
-            total_duration += duration
-        
-        # Step 4: Calculate transfers
+
+        # -----------------------------
+        # Step 5: Calculate transfers & tickets
+        # -----------------------------
         transfers = path_finder.count_transfers(path)
-        
-        # Step 5: Calculate ticket cost
         departure_time = datetime.now()
         if request.departure_time and request.departure_time != "now":
             try:
                 departure_time = datetime.fromisoformat(request.departure_time)
             except ValueError:
                 pass
-        
+
         tickets_needed, total_cost = ticketing_service.calculate_tickets(
-            total_duration, 
+            total_duration,
             departure_time
         )
-        
+
         return TripResponse(
             success=True,
             route=route_segments,
@@ -472,12 +642,13 @@ def plan_trip(request: TripRequest):
             tickets_needed=tickets_needed,
             proof_method=proof_method
         )
-        
+
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Error planning trip: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+
 
 if __name__ == "__main__":
     import uvicorn
