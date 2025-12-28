@@ -62,6 +62,7 @@ class PathFinder:
         Uses a priority queue based on: (num_transfers, num_stops, path)
         """
         import heapq
+        import itertools
         
         # Build adjacency list grouped by route
         from collections import defaultdict
@@ -76,15 +77,18 @@ class PathFinder:
                 return []
             return None
         
-        # Priority queue: (transfers, stops, current_stop, path, current_route, current_pattern)
-        pq = [(0, 0, start, [], None, None)]
+        # Counter for tiebreaking in heap (avoids comparing dicts)
+        counter = itertools.count()
+        
+        # Priority queue: (transfers, stops, counter, current_stop, path, current_route, current_pattern)
+        pq = [(0, 0, next(counter), start, [], None, None)]
         visited = {}  # (stop, route_pattern) -> (transfers, stops)
         
         best_solution = None
         best_transfers = float('inf')
         
         while pq:
-            transfers, stops, current, path, current_route, current_pattern = heapq.heappop(pq)
+            transfers, stops, _, current, path, current_route, current_pattern = heapq.heappop(pq)
             
             # Found goal
             if current == goal:
@@ -126,6 +130,7 @@ class PathFinder:
                     heapq.heappush(pq, (
                         transfers,  # Same route = no new transfer
                         stops + 1,
+                        next(counter),  # Tiebreaker
                         next_stop,
                         new_path,
                         conn["route"],
@@ -145,6 +150,7 @@ class PathFinder:
                     heapq.heappush(pq, (
                         new_transfers,
                         stops + 1,
+                        next(counter),  # Tiebreaker
                         next_stop,
                         new_path,
                         conn["route"],
