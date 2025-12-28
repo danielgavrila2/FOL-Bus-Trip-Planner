@@ -318,65 +318,101 @@ def plan_trip(request: TripRequest):
         
         logger.info(f"Planning trip from {start_stop_id} to {end_stop_id}")
         
-        # Get relevant connections (limit for performance)
-        relevant_connections = graph_builder.connections[:1000]
-        
-        # Step 1: Use Prover9 for reachability with path construction
-        fol_input = fol_engine.generate_fol_reachability(
-            stops=list(graph_builder.stops.keys())[:200],
-            connections=relevant_connections,
-            start=start_stop_id,
-            goal=end_stop_id
-        )
-        
-        logger.info("Running Prover9...")
-        prover9_output = fol_engine.run_prover9(fol_input, timeout=30)
+        # Check if direct route exists first (fastest)
+        direct_route = graph_builder.can_reach_on_single_route(start_stop_id, end_stop_id)
         
         path = None
         proof_method = "None"
         
-        if "THEOREM PROVED" in prover9_output:
-            proof_method = "Prover9 (Theorem Proved)"
-            logger.info("Prover9 proved reachability")
+        if direct_route:
+            # Direct route found - no need for FOL
+            logger.info(f"Direct route found: {direct_route['route_name']}")
+            proof_method = f"Direct Route ({direct_route['route_name']}) - No FOL needed"
             
-            # Try to extract path from proof
-            path = fol_engine.extract_path_from_proof(prover9_output, graph_builder.connections)
-            
-            if not path:
-                # Fallback: use BFS since we know path exists
-                logger.info("Extracting path with BFS (Prover9 confirmed reachability)")
-                path = path_finder.find_optimal_path(
-                    graph_builder.connections,
-                    start_stop_id,
-                    end_stop_id,
-                    prefer_fewer_transfers=request.prefer_fewer_transfers
-                )
+            # Build path
+            path = []
+            stops = direct_route['stops_between']
+            for i in range(len(stops) - 1):
+                for conn in graph_builder.connections:
+                    if conn['from'] == stops[i] and conn['to'] == stops[i+1] and conn['route'] == direct_route['route_id']:
+                        path.append(conn)
+                        break
         else:
-            # Try Mace4 to find a model
-            logger.info("Prover9 couldn't prove, trying Mace4...")
-            mace4_output = fol_engine.run_mace4(fol_input, timeout=30)
+            # Need transfers - use FOL reasoning
+            logger.info("No direct route, using Prover9 for path planning...")
             
-            if "Exiting with" in mace4_output or "model" in mace4_output.lower():
-                proof_method = "Mace4 (Model Found)"
-                logger.info("Mace4 found a model")
+            # Get relevant connections (within reasonable distance)
+            # relevant_connections = graph_builder.connections[:1000]
+            relevant_connections = graph_builder.connections
+            
+            # Step 1: Try Prover9 with step-based path construction
+            fol_input = fol_engine.generate_fol_for_path_planning(
+                connections=relevant_connections,
+                start=start_stop_id,
+                goal=end_stop_id,
+                max_steps=150
+            )
+            
+            prover9_output = fol_engine.run_prover9(fol_input, timeout=600, save_input=True)
+            
+            if "THEOREM PROVED" in prover9_output:
+                proof_method = "Prover9 (Theorem Proved)"
+                logger.info("✓ Prover9 proved path exists")
                 
-                # Extract path from Mace4 model
-                path = fol_engine.extract_path_from_mace4(
-                    mace4_output,
-                    start_stop_id,
-                    end_stop_id,
-                    graph_builder.connections
-                )
-            else:
-                # Last resort: try BFS directly
-                logger.info("FOL methods failed, using BFS as fallback")
-                proof_method = "BFS (Fallback)"
-                path = path_finder.find_optimal_path(
+                # Try to extract path from proof
+                path = fol_engine.extract_path_from_prover9_proof(
+                    prover9_output,
                     graph_builder.connections,
                     start_stop_id,
-                    end_stop_id,
-                    prefer_fewer_transfers=request.prefer_fewer_transfers
+                    end_stop_id
                 )
+                
+                if not path:
+                    # Extraction failed, but Prover9 confirmed reachability
+                    # Use optimized BFS
+                    logger.info("Path extraction from proof failed, using BFS (Prover9 confirmed reachability)")
+                    proof_method = "Prover9 (Proved) + BFS (Extraction)"
+                    path = path_finder.find_optimal_path(
+                        graph_builder.connections,
+                        start_stop_id,
+                        end_stop_id,
+                        prefer_fewer_transfers=request.prefer_fewer_transfers
+                    )
+            else:
+                # Prover9 failed, try Mace4
+                logger.info("Prover9 failed/timeout, trying Mace4...")
+                
+                fol_mace4 = fol_engine.generate_fol_with_mace4(
+                    connections=relevant_connections,
+                    start=start_stop_id,
+                    goal=end_stop_id,
+                    route_patterns=graph_builder.route_patterns
+                )
+                
+                mace4_output = fol_engine.run_mace4(fol_mace4, timeout=30, save_input=True)
+                
+                if "Exiting with" in mace4_output or "model" in mace4_output.lower():
+                    proof_method = "Mace4 (Model Found)"
+                    logger.info("✓ Mace4 found satisfying model")
+                    
+                    # Extract path using Mace4 confirmation
+                    path = fol_engine.extract_path_from_mace4(
+                        mace4_output,
+                        graph_builder.connections,
+                        start_stop_id,
+                        end_stop_id,
+                        graph_builder
+                    )
+                else:
+                    # Both FOL methods failed, use BFS as last resort
+                    logger.warning("Both Prover9 and Mace4 failed, using BFS fallback")
+                    proof_method = "BFS (FOL methods failed)"
+                    path = path_finder.find_optimal_path(
+                        graph_builder.connections,
+                        start_stop_id,
+                        end_stop_id,
+                        prefer_fewer_transfers=request.prefer_fewer_transfers
+                    )
         
         if not path:
             return TripResponse(

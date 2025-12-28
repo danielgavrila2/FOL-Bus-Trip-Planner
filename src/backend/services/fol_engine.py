@@ -3,79 +3,122 @@ import tempfile
 import os
 from typing import List, Dict
 import logging
+from datetime import datetime
+import hashlib
 
 logger = logging.getLogger(__name__)
 
 class FOLEngine:
-    def __init__(self, prover9_path: str = "prover9", mace4_path: str = "mace4"):
+    def __init__(self, prover9_path: str = "prover9/Prover9/LADR-2009-11A/bin", mace4_path: str = "prover9/Prover9/LADR-2009-11A/bin"):
         self.prover9_path = prover9_path
         self.mace4_path = mace4_path
-    
-    def generate_fol_path_finding(
-        self, 
-        stops: List[str], 
-        connections: List[Dict], 
-        start: str, 
-        goal: str,
-        max_depth: int = 10
+
+    def _write_fol_input(
+        self,
+        fol_input: str,
+        prefix: str,
+        save_input: bool
     ) -> str:
         """
-        Generate FOL for path finding problem.
-        We define a path as a sequence of connections.
+        Writes FOL input either to a temp file or to a persistent debug file.
+        Returns the file path.
+        """
+        if save_input:
+            os.makedirs("fol_inputs", exist_ok=True)
+
+            timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
+            content_hash = hashlib.md5(fol_input.encode()).hexdigest()[:8]
+            filename = f"{prefix}_{timestamp}_{content_hash}.in"
+
+            path = os.path.join("fol_inputs", filename)
+            with open(path, "w") as f:
+                f.write(fol_input)
+
+            logger.info(f"Saved FOL input to {path}")
+            return path
+
+        # Default: temporary file
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".in", delete=False)
+        tmp.write(fol_input)
+        tmp.close()
+        return tmp.name
+
+    
+    def generate_fol_for_path_planning(
+        self,
+        connections: List[Dict],
+        start: str,
+        goal: str,
+        max_steps: int = 15000
+    ) -> str:
+        """
+        Generate FOL for path planning with bounded depth search.
+        Uses a step-by-step path construction approach.
         """
         lines = []
         
-        # Prover9 input format
         lines.append("set(auto).")
-        lines.append("set(production).")
+        lines.append("clear(print_kept).")
+        lines.append("clear(print_given).")
         lines.append("")
+        
         lines.append("formulas(assumptions).")
         lines.append("")
         
-        # Define stops
-        lines.append("% Stops")
-        for stop in stops[:200]:  # Limit for performance
-            lines.append(f"stop({stop}).")
+        # Define all direct connections
+        lines.append("% Direct bus connections (from, to, route)")
+        connection_set = set()
+        for conn in connections:  # Limit for performance
+            key = (conn['from'], conn['to'], conn['route'])
+            if key not in connection_set:
+                connection_set.add(key)
+                lines.append(f"connected({conn['from']}, {conn['to']}, route_{conn['route']}).")
         lines.append("")
         
-        # Define direct connections
-        lines.append("% Direct connections")
-        for conn in connections:
-            lines.append(f"direct({conn['from']}, {conn['to']}, {conn['route']}).")
+        # Path building predicates
+        lines.append("% Path building rules")
+        lines.append("% at(Stop, Step) means we are at Stop at step number Step")
+        lines.append("% path_uses(Route, Step) means path uses Route at Step")
         lines.append("")
         
-        # Path construction rules
-        lines.append("% Path finding rules")
-        lines.append("% Base case: can reach a stop from itself with empty path")
-        lines.append(f"path({start}, {start}, empty).")
+        # Starting position
+        lines.append(f"% Start at step 0")
+        lines.append(f"at({start}, 0).")
         lines.append("")
         
-        # Inductive case with path construction
-        lines.append("% If there's a path from S to X, and X connects to Y, then there's a path from S to Y")
-        lines.append("all S all X all Y all R all P (")
-        lines.append(f"  path({start}, X, P) & direct(X, Y, R) -> path({start}, Y, cons(step(X,Y,R), P))")
-        lines.append(").")
+        # Path extension rules for each step
+        lines.append("% Path extension: if at X at step N and connected(X,Y,R), then can be at Y at step N+1")
+        for step in range(max_steps):
+            lines.append(f"all X all Y all R (at(X, {step}) & connected(X, Y, R) -> at(Y, {step+1}) & path_uses(R, {step+1})).")
+        lines.append("")
+        
+        # Transitivity of reachability
+        lines.append("% If at a stop at any step, it's reachable")
+        for step in range(max_steps + 1):
+            lines.append(f"at(X, {step}) -> reachable(X).")
         lines.append("")
         
         lines.append("end_of_list.")
         lines.append("")
         
-        # Goal: find a path to the destination
+        # Goal: reach destination at any step
         lines.append("formulas(goals).")
-        lines.append(f"exists P (path({start}, {goal}, P)).")
+        goal_clauses = " | ".join([f"at({goal}, {i})" for i in range(1, max_steps + 1)])
+        lines.append(f"{goal_clauses}.")
         lines.append("end_of_list.")
         
         return "\n".join(lines)
     
-    def generate_fol_reachability(
-        self, 
-        stops: List[str], 
-        connections: List[Dict], 
-        start: str, 
-        goal: str
+    def generate_fol_with_mace4(
+        self,
+        connections: List[Dict],
+        start: str,
+        goal: str,
+        route_patterns: Dict[str, List[str]]
     ) -> str:
         """
-        Generate simpler FOL for reachability checking only.
+        Generate FOL for Mace4 to find a satisfying model.
+        This is more suitable for actual path finding.
         """
         lines = []
         
@@ -83,78 +126,106 @@ class FOLEngine:
         lines.append("")
         
         # Define connections
-        lines.append("% Direct connections")
-        for conn in connections[:500]:  # Limit for performance
-            lines.append(f"connected({conn['from']}, {conn['to']}).")
+        lines.append("% Bus connections")
+        for conn in connections[:500]:
+            lines.append(f"connected({conn['from']}, {conn['to']}, r{conn['route']}).")
+        lines.append("")
+        
+        # Define route patterns (single-route reachability)
+        lines.append("% Route patterns (stops on same route)")
+        for pattern_key, stops in list(route_patterns.items())[:50]:
+            route_id = pattern_key.split('_')[0]
+            for i in range(len(stops) - 1):
+                for j in range(i + 1, len(stops)):
+                    lines.append(f"same_route({stops[i]}, {stops[j]}, r{route_id}).")
         lines.append("")
         
         # Reachability rules
-        lines.append("% Reachability axioms")
-        lines.append(f"reachable({start}, {start}).")
-        lines.append("")
-        lines.append("all X all Y (reachable(" + start + ", X) & connected(X, Y) -> reachable(" + start + ", Y)).")
-        lines.append("")
-        
-        lines.append("end_of_list.")
+        lines.append("% Reachability")
+        lines.append(f"reachable({start}).")
+        lines.append("all X all Y all R (reachable(X) & connected(X, Y, R) -> reachable(Y)).")
         lines.append("")
         
-        # Goal
-        lines.append("formulas(goals).")
-        lines.append(f"reachable({start}, {goal}).")
+        # Require goal to be reachable
+        lines.append(f"reachable({goal}).")
+        lines.append("")
+        
         lines.append("end_of_list.")
         
         return "\n".join(lines)
     
-    def extract_path_from_proof(self, prover9_output: str, connections: List[Dict]):
+    def extract_path_from_prover9_proof(
+        self,
+        prover9_output: str,
+        connections: List[Dict],
+        start: str,
+        goal: str
+    ):
         """
-        Extract the path from Prover9's proof output.
-        This is a simplified extraction - looks for the sequence of inferences.
+        Extract path from Prover9's proof by analyzing which at(X, Step) predicates were derived.
         """
         if "THEOREM PROVED" not in prover9_output:
             return None
         
-        # Parse the proof to find which connections were used
-        # This is a heuristic approach
-        used_connections = []
+        # Parse proof to find at(stop, step) predicates
+        at_predicates = []
+        path_uses_predicates = []
         
         for line in prover9_output.split('\n'):
-            # Look for lines with "direct" or "connected" predicates
-            if 'direct(' in line or 'connected(' in line:
-                # Extract connection information
-                # Format: direct(from, to, route) or connected(from, to)
-                try:
-                    # Simple regex-like parsing
-                    import re
-                    matches = re.findall(r'(?:direct|connected)\((\d+),\s*(\d+)(?:,\s*(\d+))?\)', line)
-                    for match in matches:
-                        from_stop, to_stop = match[0], match[1]
-                        # Find the actual connection object
-                        for conn in connections:
-                            if conn['from'] == from_stop and conn['to'] == to_stop:
-                                if conn not in used_connections:
-                                    used_connections.append(conn)
-                                break
-                except:
-                    continue
+            # Look for at(stop, step) in the proof
+            import re
+            at_matches = re.findall(r'at\((\d+),\s*(\d+)\)', line)
+            for stop, step in at_matches:
+                at_predicates.append((stop, int(step)))
+            
+            # Look for path_uses(route, step)
+            route_matches = re.findall(r'path_uses\(route_(\d+),\s*(\d+)\)', line)
+            for route, step in route_matches:
+                path_uses_predicates.append((route, int(step)))
         
-        return used_connections if used_connections else None
+        if not at_predicates:
+            return None
+        
+        # Sort by step to reconstruct path
+        at_predicates.sort(key=lambda x: x[1])
+        
+        # Build path from consecutive stops
+        path = []
+        for i in range(len(at_predicates) - 1):
+            from_stop = at_predicates[i][0]
+            to_stop = at_predicates[i + 1][0]
+            step = at_predicates[i][1]
+            
+            # Find the connection
+            for conn in connections:
+                if conn['from'] == from_stop and conn['to'] == to_stop:
+                    path.append(conn)
+                    break
+            
+            if to_stop == goal:
+                break
+        
+        return path if path else None
     
-    def run_prover9(self, fol_input: str, timeout: int = 60) -> str:
+    def run_prover9(self, fol_input: str, timeout: int = 600, save_input: bool = False) -> str:
         """Run Prover9 theorem prover"""
         try:
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.in', delete=False) as f:
-                f.write(fol_input)
-                temp_file = f.name
+            input_file = self._write_fol_input(fol_input, prefix="prover9", save_input=save_input)
+
+            # with tempfile.NamedTemporaryFile(mode='w', suffix='.in', delete=False) as f:
+            #     f.write(fol_input)
+            #     temp_file = f.name
             
             result = subprocess.run(
-                [self.prover9_path, "-f", temp_file],
+                [self.prover9_path, "-f", input_file],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 timeout=timeout
             )
             
-            os.unlink(temp_file)
+            if not save_input:
+                os.unlink(input_file)
             
             logger.info(f"Prover9 exit code: {result.returncode}")
             return result.stdout
@@ -169,22 +240,25 @@ class FOLEngine:
             logger.error(f"Prover9 error: {e}")
             return f"ERROR: {str(e)}"
     
-    def run_mace4(self, fol_input: str, timeout: int = 60) -> str:
+    def run_mace4(self, fol_input: str, timeout: int = 600, save_input: bool = False) -> str:
         """Run Mace4 model finder"""
         try:
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.in', delete=False) as f:
-                f.write(fol_input)
-                temp_file = f.name
+            input_file = self._write_fol_input(fol_input, prefix="mace4", save_input=save_input)
+
+            # with tempfile.NamedTemporaryFile(mode='w', suffix='.in', delete=False) as f:
+            #     f.write(fol_input)
+            #     temp_file = f.name
             
             result = subprocess.run(
-                [self.mace4_path, "-f", temp_file, "-n", "20", "-N", "50"],
+                [self.mace4_path, "-f", input_file, "-n", "2", "-N", "20", "-t", str(timeout)],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=timeout
+                timeout=timeout + 5
             )
             
-            os.unlink(temp_file)
+            if not save_input:
+                os.unlink(input_file)
             
             logger.info(f"Mace4 exit code: {result.returncode}")
             return result.stdout
@@ -199,24 +273,47 @@ class FOLEngine:
             logger.error(f"Mace4 error: {e}")
             return f"ERROR: {str(e)}"
     
-    def extract_path_from_mace4(self, mace4_output: str, start: str, goal: str, connections: List[Dict]):
+    def extract_path_from_mace4(
+        self,
+        mace4_output: str,
+        connections: List[Dict],
+        start: str,
+        goal: str,
+        graph_builder
+    ):
         """
         Extract path from Mace4 model.
-        Mace4 gives us a model that satisfies the constraints.
+        Since Mace4 proves satisfiability, we use it to confirm reachability,
+        then use graph search to find the actual path.
         """
-        if "Exiting" not in mace4_output and "Model" not in mace4_output:
+        if "Exiting" not in mace4_output and "model" not in mace4_output.lower():
             return None
         
-        # Build a graph and use BFS as fallback
-        # Since Mace4 proves satisfiability, we know a path exists
+        # Mace4 found a model, meaning path exists
+        # Use BFS to find it (Mace4 confirms it's possible)
+        logger.info("Mace4 confirmed path exists, using graph search to find it")
+        
+        # Check for direct route first
+        if graph_builder:
+            direct = graph_builder.can_reach_on_single_route(start, goal)
+            if direct:
+                path = []
+                stops = direct['stops_between']
+                for i in range(len(stops) - 1):
+                    for conn in connections:
+                        if conn['from'] == stops[i] and conn['to'] == stops[i+1]:
+                            path.append(conn)
+                            break
+                return path
+        
+        # Otherwise use BFS
+        from collections import deque
         graph = {}
         for conn in connections:
             if conn["from"] not in graph:
                 graph[conn["from"]] = []
             graph[conn["from"]].append(conn)
         
-        # BFS to find path
-        from collections import deque
         queue = deque([(start, [])])
         visited = {start}
         
@@ -236,4 +333,3 @@ class FOLEngine:
                     queue.append((next_stop, path + [conn]))
         
         return None
-
