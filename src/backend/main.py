@@ -42,6 +42,10 @@ async def lifespan(app: FastAPI):
         # Build connection graph using shapes for better accuracy
         graph_builder.build_graph(stops, routes, trips, stop_times, shapes)
         logger.info(f"Built graph with {len(graph_builder.connections)} connections")
+        
+        # Connect path finder to graph builder for single-route optimization
+        path_finder.set_graph_builder(graph_builder)
+        
     except Exception as e:
         logger.error(f"Failed to initialize: {e}")
         raise
@@ -255,6 +259,40 @@ def debug_route(route_name: str):
         "total_stops": len(stops_details),
         "total_connections": len(route_connections),
         "stops": stops_details
+    }
+
+@app.get("/debug/direct/{start}/{end}")
+def check_direct_route(start: str, end: str):
+    """Check if two stops are connected by a single route"""
+    start_id = graph_builder.resolve_stop(start)
+    end_id = graph_builder.resolve_stop(end)
+    
+    if not start_id or not end_id:
+        return {
+            "error": "One or both stops not found",
+            "start_resolved": start_id,
+            "end_resolved": end_id
+        }
+    
+    direct = graph_builder.can_reach_on_single_route(start_id, end_id)
+    
+    if direct:
+        stop_names = []
+        for stop_id in direct['stops_between']:
+            if stop_id in graph_builder.stops:
+                stop_names.append(graph_builder.stops[stop_id].get("stop_name", stop_id))
+        
+        return {
+            "direct_route_available": True,
+            "route_name": direct['route_name'],
+            "route_id": direct['route_id'],
+            "num_stops": direct['num_stops'],
+            "stops": stop_names
+        }
+    
+    return {
+        "direct_route_available": False,
+        "message": "No single route connects these stops. Transfers required."
     }
 
 @app.post("/plan", response_model=TripResponse)
