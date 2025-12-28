@@ -22,18 +22,31 @@ class PathFinder:
                 graph[conn["from"]] = []
             graph[conn["from"]].append(conn)
         
+        logger.info(f"Pathfinding from {start} to {goal}")
+        logger.info(f"Start node in graph: {start in graph}")
+        logger.info(f"Goal node exists in stops: {goal in [c['to'] for c in connections] or goal in graph}")
+        
         if start not in graph:
             logger.warning(f"Start stop {start} has no outgoing connections")
+            # Check if start equals goal
+            if start == goal:
+                return []
             return None
         
         # BFS with path tracking
         queue = deque([(start, [], None)])  # (current_stop, path, current_route)
         visited = {start}
+        nodes_explored = 0
         
         while queue:
             current, path, current_route = queue.popleft()
+            nodes_explored += 1
+            
+            if nodes_explored % 100 == 0:
+                logger.debug(f"Explored {nodes_explored} nodes, queue size: {len(queue)}")
             
             if current == goal:
+                logger.info(f"Path found! Length: {len(path)}, Nodes explored: {nodes_explored}")
                 return path
             
             if current not in graph:
@@ -54,7 +67,7 @@ class PathFinder:
                     new_path = path + [conn]
                     queue.append((next_stop, new_path, conn["route"]))
         
-        logger.warning(f"No path found from {start} to {goal}")
+        logger.warning(f"No path found from {start} to {goal}. Explored {nodes_explored} nodes, visited {len(visited)} stops")
         return None
     
     def count_transfers(self, path: List[Dict]) -> int:

@@ -85,3 +85,19 @@ class TranzyService:
         except Exception as e:
             logger.error(f"Error fetching stop times: {e}")
             raise
+    
+    def fetch_shapes(self) -> List[Dict[str, Any]]:
+        """Fetch shapes (route geometries)"""
+        try:
+            response = requests.get(
+                f"{self.base_url}/shapes",
+                headers=self.headers,
+                timeout=60
+            )
+            response.raise_for_status()
+            data = response.json()
+            logger.info(f"Fetched {len(data)} shape points")
+            return data
+        except Exception as e:
+            logger.error(f"Error fetching shapes: {e}")
+            raise

@@ -33,13 +33,14 @@ async def lifespan(app: FastAPI):
         routes = tranzy_service.fetch_routes()
         logger.info(f"Loaded {len(stops)} stops and {len(routes)} routes")
         
-        logger.info("Loading trips and stop times...")
+        logger.info("Loading trips, stop times, and shapes...")
         trips = tranzy_service.fetch_trips()
         stop_times = tranzy_service.fetch_stop_times()
-        logger.info(f"Loaded {len(trips)} trips and {len(stop_times)} stop times")
+        shapes = tranzy_service.fetch_shapes()
+        logger.info(f"Loaded {len(trips)} trips, {len(stop_times)} stop times, and {len(shapes)} shape points")
         
-        # Build connection graph
-        graph_builder.build_graph(stops, routes, trips, stop_times)
+        # Build connection graph using shapes for better accuracy
+        graph_builder.build_graph(stops, routes, trips, stop_times, shapes)
         logger.info(f"Built graph with {len(graph_builder.connections)} connections")
     except Exception as e:
         logger.error(f"Failed to initialize: {e}")
@@ -170,13 +171,90 @@ def debug_stop(stop_identifier: str):
     outgoing = [c for c in graph_builder.connections if c["from"] == stop_id]
     incoming = [c for c in graph_builder.connections if c["to"] == stop_id]
     
+    # Group by route to see which routes serve this stop
+    routes_serving = {}
+    for conn in outgoing + incoming:
+        route_id = conn["route"]
+        route_name = conn["route_name"]
+        if route_name not in routes_serving:
+            routes_serving[route_name] = {
+                "route_id": route_id,
+                "route_name": route_name,
+                "connections": 0
+            }
+        routes_serving[route_name]["connections"] += 1
+    
     return {
         "stop_id": stop_id,
-        "stop_data": stop,
+        "stop_name": stop.get("stop_name", stop.get("name")),
+        "coordinates": {
+            "lat": stop.get("stop_lat", stop.get("lat")),
+            "lon": stop.get("stop_lon", stop.get("lon"))
+        },
         "outgoing_connections": len(outgoing),
         "incoming_connections": len(incoming),
+        "routes_serving": list(routes_serving.values()),
         "sample_outgoing": outgoing[:10],
         "sample_incoming": incoming[:10]
+    }
+
+@app.get("/debug/route/{route_name}")
+def debug_route(route_name: str):
+    """Debug: Show all stops on a route"""
+    # Find route by name
+    route_id = None
+    for rid, route in graph_builder.routes.items():
+        if route.get("route_short_name", route.get("short_name", "")) == route_name:
+            route_id = rid
+            break
+    
+    if not route_id:
+        return {"error": f"Route {route_name} not found"}
+    
+    # Get all connections for this route
+    route_connections = [c for c in graph_builder.connections if c["route"] == route_id]
+    
+    # Build ordered stop sequence
+    stop_sequence = []
+    visited = set()
+    
+    if route_connections:
+        # Start from first connection
+        current = route_connections[0]["from"]
+        stop_sequence.append(current)
+        visited.add(current)
+        
+        while True:
+            # Find next connection
+            next_conn = None
+            for conn in route_connections:
+                if conn["from"] == current and conn["to"] not in visited:
+                    next_conn = conn
+                    break
+            
+            if not next_conn:
+                break
+            
+            current = next_conn["to"]
+            stop_sequence.append(current)
+            visited.add(current)
+    
+    # Get stop details
+    stops_details = []
+    for stop_id in stop_sequence:
+        if stop_id in graph_builder.stops:
+            stop = graph_builder.stops[stop_id]
+            stops_details.append({
+                "stop_id": stop_id,
+                "stop_name": stop.get("stop_name", stop.get("name", "Unknown"))
+            })
+    
+    return {
+        "route_id": route_id,
+        "route_name": route_name,
+        "total_stops": len(stops_details),
+        "total_connections": len(route_connections),
+        "stops": stops_details
     }
 
 @app.post("/plan", response_model=TripResponse)

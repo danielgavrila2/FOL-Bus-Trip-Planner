@@ -7,7 +7,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 class FOLEngine:
-    def __init__(self, prover9_path: str = "prover9/Prover9/LADR-2009-11A/bin", mace4_path: str = "prover9/Prover9/LADR-2009-11A/bin"):
+    def __init__(self, prover9_path: str = "prover9", mace4_path: str = "mace4"):
         self.prover9_path = prover9_path
         self.mace4_path = mace4_path
     
@@ -34,7 +34,7 @@ class FOLEngine:
         
         # Define stops
         lines.append("% Stops")
-        for stop in stops:  # Limit for performance
+        for stop in stops[:200]:  # Limit for performance
             lines.append(f"stop({stop}).")
         lines.append("")
         
@@ -236,3 +236,4 @@ class FOLEngine:
                     queue.append((next_stop, path + [conn]))
         
         return None
+
