@@ -571,16 +571,19 @@ def plan_trip(request: TripRequest):
                     path=candidate_path,
                     include_direct_routes=True
                 )
-                mace4_output = fol_engine.run_mace4(fol_mace4, timeout=max(30, len(candidate_path) * 2), save_input=True)
+                mace4_output = fol_engine.run_mace4(fol_mace4, 
+                                                    timeout=600, #max(30, len(candidate_path) * 2), 
+                                                    save_input=True
+                                                    )
 
                 # If Mace4 finds a model, path exists
                 if "Exiting" in mace4_output or "model" in mace4_output.lower():
                     proof_method = "Mace4 (Path Exists)"
-                    path = candidate_path
                 else:
                     # Last resort: BFS only
                     proof_method = "BFS (FOL failed)"
-                    path = candidate_path
+                
+                path = candidate_path
             else:
                 proof_method = "BFS (No candidate path)"
                 path = candidate_path

@@ -2,23 +2,31 @@
 import subprocess
 import tempfile
 import os
-from typing import List, Dict, Optional
+from typing import List, Dict
 import logging
 from datetime import datetime
 import hashlib
+import re
 
 logger = logging.getLogger(__name__)
 
+
 class FOLEngine:
-    def __init__(self, prover9_path: str = "src/backend/prover9/Prover9/LADR-2009-11A/bin/prover9", mace4_path: str = "src/backend/prover9/Prover9/LADR-2009-11A/bin/mace4"):
+    def __init__(
+        self,
+        prover9_path: str = "src/backend/prover9/Prover9/LADR-2009-11A/bin/prover9",
+        mace4_path: str = "src/backend/prover9/Prover9/LADR-2009-11A/bin/mace4",
+    ):
         self.prover9_path = prover9_path
         self.mace4_path = mace4_path
 
+    # -------------------------------------------------
+    # File helpers
+    # -------------------------------------------------
     def _write_fol_input(self, fol_input: str, prefix: str, save_input: bool) -> str:
-        """
-        Write FOL input to a temp file or persistent file for debugging.
-        Returns the file path.
-        """
+        if fol_input is None:
+            raise ValueError("FOL input is None")
+
         if save_input:
             os.makedirs("fol_inputs", exist_ok=True)
             timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
@@ -35,139 +43,157 @@ class FOLEngine:
         tmp.close()
         return tmp.name
 
+    def _save_fol_output(self, output: str, prefix: str, fol_input: str):
+        if output is None:
+            output = ""
+
+        os.makedirs("fol_outputs", exist_ok=True)
+        timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
+        content_hash = hashlib.md5(fol_input.encode()).hexdigest()[:8]
+        filename = f"{prefix}_{timestamp}_{content_hash}.out"
+        path = os.path.join("fol_outputs", filename)
+
+        with open(path, "w") as f:
+            f.write(output)
+
+        logger.info(f"Saved FOL output to {path}")
+
+    # -------------------------------------------------
+    # Node remapping (CRITICAL FIX)
+    # -------------------------------------------------
+    def _remap_nodes(self, fol_input: str):
+        pattern = re.compile(r"\b\d+\b")
+        numbers = sorted({int(x) for x in pattern.findall(fol_input)})
+        mapping = {old: new for new, old in enumerate(numbers)}
+
+        def repl(match):
+            return str(mapping[int(match.group(0))])
+
+        remapped = pattern.sub(repl, fol_input)
+        return remapped, mapping
+
+    # -------------------------------------------------
+    # MACE4: existence check
+    # -------------------------------------------------
     def generate_fol_existence(self, path: List[Dict], include_direct_routes: bool = True) -> str:
-        """
-        Generate FOL for Mace4 to check existence of a path from start to goal.
-        Only includes nodes and routes in the path to reduce model size.
-        If include_direct_routes=True, also allows direct connections between consecutive nodes.
-        """
         if not path:
             raise ValueError("Path is empty")
 
-        lines = []
-        lines.append("set(production).")
-        lines.append("formulas(assumptions).")
+        lines = ["formulas(assumptions)."]
+        reachable_nodes = set()
 
-        used_routes = set()
-        used_nodes = set()
         for seg in path:
-            used_nodes.add(seg['from'])
-            used_nodes.add(seg['to'])
-            used_routes.add(seg['route'])
-            # Include the connection
-            lines.append(f"connected({seg['from']}, {seg['to']}, r{seg['route']}).")
+            lines.append(f"connected({seg['from']},{seg['to']},r{seg['route']}).")
+            reachable_nodes.add(seg["from"])
+            reachable_nodes.add(seg["to"])
 
-        # Include direct route between consecutive steps if desired
         if include_direct_routes:
-            for i in range(len(path)-1):
-                lines.append(f"connected({path[i]['from']}, {path[i+1]['from']}, r_direct).")
-                lines.append(f"connected({path[i]['from']}, {path[i+1]['to']}, r_direct).")
+            for i in range(len(path) - 1):
+                a = path[i]["from"]
+                b = path[i + 1]["from"]
+                c = path[i + 1]["to"]
+                lines.append(f"connected({a},{b},r_direct).")
+                lines.append(f"connected({a},{c},r_direct).")
 
-        # Reachability
-        start_node = path[0]['from']
-        goal_node = path[-1]['to']
-        lines.append(f"reachable({start_node}).")
-        lines.append("all X all Y all R (reachable(X) & connected(X,Y,R) -> reachable(Y)).")
+        for n in reachable_nodes:
+            lines.append(f"reachable({n}).")
+
+        goal = path[-1]["to"]
+        lines.append(f"reachable({goal}).")
         lines.append("end_of_list.")
 
-        # Goal
-        lines.append("formulas(goals).")
-        lines.append(f"reachable({goal_node}).")
-        lines.append("end_of_list.")
+        fol_input = "\n".join(lines)
 
-        return "\n".join(lines)
+        # 🔑 FIX: RETURN REMAPPED INPUT
+        fol_input_remapped, mapping = self._remap_nodes(fol_input)
+        logger.info(
+            f"Remapped {len(mapping)} nodes. Largest node: {max(mapping.values())}"
+        )
 
+        return fol_input_remapped
 
-    # -----------------------------
-    # PROVER9: Path verification
-    # -----------------------------
+    # -------------------------------------------------
+    # PROVER9: verification
+    # -------------------------------------------------
     def generate_fol_verification(self, path: List[Dict]) -> str:
-        """
-        Generate FOL to verify a given path is valid.
-        """
         if not path:
             raise ValueError("Path is empty")
 
-        lines = []
-        lines.append("formulas(assumptions).")
+        lines = ["set(production).", "formulas(assumptions)."]
 
-        # Declare all connections used in path
         for seg in path:
-            lines.append(f"connected({seg['from']}, {seg['to']}, r{seg['route']}).")
-            lines.append(f"on_route({seg['from']}, r{seg['route']}).")
-            lines.append(f"on_route({seg['to']}, r{seg['route']}).")
+            lines.append(f"connected({seg['from']},{seg['to']},r{seg['route']}).")
+            lines.append(f"on_route({seg['from']},r{seg['route']}).")
+            lines.append(f"on_route({seg['to']},r{seg['route']}).")
 
-        # Encode path steps
         for i, seg in enumerate(path):
-            lines.append(f"step({i}, {seg['from']}).")
-            lines.append(f"uses({i+1}, r{seg['route']}).")
-        # Final step
-        lines.append(f"step({len(path)}, {path[-1]['to']}).")
+            lines.append(f"step({i},{seg['from']}).")
+            lines.append(f"uses({i+1},r{seg['route']}).")
 
-        # Logical constraints: consecutive steps must be connected
+        lines.append(f"step({len(path)},{path[-1]['to']}).")
         lines.append(
             "all N all X all Y all R "
             "(step(N,X) & step(N+1,Y) & uses(N+1,R) -> connected(X,Y,R))."
         )
         lines.append("end_of_list.")
-
-        # Goal
         lines.append("formulas(goals).")
-        lines.append(f"step({len(path)}, {path[-1]['to']}).")
+        lines.append(f"step({len(path)},{path[-1]['to']}).")
         lines.append("end_of_list.")
 
         return "\n".join(lines)
 
-    # -----------------------------
+    # -------------------------------------------------
     # Run Prover9
-    # -----------------------------
+    # -------------------------------------------------
     def run_prover9(self, fol_input: str, timeout: int = 600, save_input: bool = False) -> str:
         try:
-            input_file = self._write_fol_input(fol_input, prefix="prover9", save_input=save_input)
+            input_file = self._write_fol_input(fol_input, "prover9", save_input)
             result = subprocess.run(
                 [self.prover9_path, "-f", input_file],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=timeout
+                timeout=timeout,
             )
-            if not save_input:
-                os.unlink(input_file)
+
+            if save_input:
+                self._save_fol_output(result.stdout, "prover9", fol_input)
+
+            os.unlink(input_file)
             logger.info(f"Prover9 exit code: {result.returncode}")
             return result.stdout
+
         except subprocess.TimeoutExpired:
-            logger.warning("Prover9 timeout")
             return "TIMEOUT"
-        except FileNotFoundError:
-            logger.error(f"Prover9 not found at {self.prover9_path}")
-            return "ERROR: Prover9 not found"
         except Exception as e:
             logger.error(f"Prover9 error: {e}")
-            return f"ERROR: {str(e)}"
+            return f"ERROR: {e}"
 
-    # -----------------------------
+    # -------------------------------------------------
     # Run Mace4
-    # -----------------------------
+    # -------------------------------------------------
     def run_mace4(self, fol_input: str, timeout: int = 600, save_input: bool = False) -> str:
         try:
-            input_file = self._write_fol_input(fol_input, prefix="mace4", save_input=save_input)
+            input_file = self._write_fol_input(fol_input, "mace4", save_input)
             result = subprocess.run(
-                [self.mace4_path, "-f", input_file, "-n", "2", "-N", "20", "-t", str(timeout)],
+                [self.mace4_path, "-f", input_file],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
-                timeout=timeout + 5
+                timeout=timeout + 5,
             )
-            if not save_input:
-                os.unlink(input_file)
+
+            output = result.stdout or ""
+
+            if save_input:
+                self._save_fol_output(output, "mace4", fol_input)
+
+            os.unlink(input_file)
             logger.info(f"Mace4 exit code: {result.returncode}")
-            return result.stdout
+            return output
+
         except subprocess.TimeoutExpired:
-            logger.warning("Mace4 timeout")
             return "TIMEOUT"
-        except FileNotFoundError:
-            logger.error(f"Mace4 not found at {self.mace4_path}")
-            return "ERROR: Mace4 not found"
         except Exception as e:
             logger.error(f"Mace4 error: {e}")
-            return f"ERROR: {str(e)}"
+            return f"ERROR: {e}"
