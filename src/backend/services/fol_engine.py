@@ -23,7 +23,7 @@ class FOLEngine:
     # -------------------------------------------------
     # File helpers
     # -------------------------------------------------
-    def _write_fol_input(self, fol_input: str, prefix: str, save_input: bool) -> str:
+    def _write_fol_input(self, fol_input: str, prefix: str, save_input: bool = True) -> str:
         if fol_input is None:
             raise ValueError("FOL input is None")
 
@@ -75,7 +75,7 @@ class FOLEngine:
     # -------------------------------------------------
     # MACE4: existence check
     # -------------------------------------------------
-    def generate_fol_existence(self, path: List[Dict], include_direct_routes: bool = True) -> str:
+    def generate_fol_existence(self, path: List[Dict], include_direct_routes: bool = True, save_input : bool = True) -> str:
         if not path:
             raise ValueError("Path is empty")
 
@@ -104,6 +104,9 @@ class FOLEngine:
 
         fol_input = "\n".join(lines)
 
+        if save_input:
+            self._write_fol_input(fol_input, "mace4", True)
+
         # 🔑 FIX: RETURN REMAPPED INPUT
         fol_input_remapped, mapping = self._remap_nodes(fol_input)
         logger.info(
@@ -118,36 +121,62 @@ class FOLEngine:
     def generate_fol_verification(self, path: List[Dict]) -> str:
         if not path:
             raise ValueError("Path is empty")
-
-        lines = ["set(production).", "formulas(assumptions)."]
-
+        
+        lines = ["set(production)."] 
+        lines.append("formulas(assumptions).")
+        lines.append("assign(max_weight, 30).")
+        lines.append("assign(max_proofs, 1).")  
+        lines.append("assign(max_seconds, 30).")      
+        lines.append("assign(sos_limit, 500).")   
+        
+        # Add connections (remapped later)
         for seg in path:
             lines.append(f"connected({seg['from']},{seg['to']},r{seg['route']}).")
-            lines.append(f"on_route({seg['from']},r{seg['route']}).")
-            lines.append(f"on_route({seg['to']},r{seg['route']}).")
-
+            # Optionally add back if needed:
+            # lines.append(f"on_route({seg['from']},r{seg['route']}).")
+            # lines.append(f"on_route({seg['to']},r{seg['route']}).")
+        
+        # Successor chain
+        for i in range(len(path)):
+            lines.append(f"succ({i},{i+1}).")
+        
+        # Start point
+        lines.append(f"step(0,{path[0]['from']}).")
+        
+        # Uses (route per step)
         for i, seg in enumerate(path):
-            lines.append(f"step({i},{seg['from']}).")
             lines.append(f"uses({i+1},r{seg['route']}).")
-
-        lines.append(f"step({len(path)},{path[-1]['to']}).")
+        
+        # Main axiom
         lines.append(
-            "all N all X all Y all R "
-            "(step(N,X) & step(N+1,Y) & uses(N+1,R) -> connected(X,Y,R))."
+            "all N all M all X all Y all R "
+            "(step(N,X) & succ(N,M) & uses(M,R) & connected(X,Y,R) -> step(M,Y))."
         )
         lines.append("end_of_list.")
+        
+        # Goal
         lines.append("formulas(goals).")
         lines.append(f"step({len(path)},{path[-1]['to']}).")
         lines.append("end_of_list.")
-
-        return "\n".join(lines)
+        
+        # Combine into single string
+        fol_input = "\n".join(lines)
+        
+        # Apply remapping (same as in generate_fol_existence)
+        fol_input_remapped, mapping = self._remap_nodes(fol_input)
+        
+        logger.info(
+            f"Prover9 remapped {len(mapping)} nodes. Largest node: {max(mapping.values())}"
+        )
+        
+        return fol_input_remapped
 
     # -------------------------------------------------
     # Run Prover9
     # -------------------------------------------------
-    def run_prover9(self, fol_input: str, timeout: int = 600, save_input: bool = False) -> str:
+    def run_prover9(self, fol_input: str, timeout: int = 600, save_input: bool = True) -> str:
         try:
-            input_file = self._write_fol_input(fol_input, "prover9", save_input)
+            input_file = self._write_fol_input(fol_input, "prover9", save_input=True)
             result = subprocess.run(
                 [self.prover9_path, "-f", input_file],
                 stdout=subprocess.PIPE,
@@ -174,7 +203,7 @@ class FOLEngine:
     # -------------------------------------------------
     def run_mace4(self, fol_input: str, timeout: int = 600, save_input: bool = False) -> str:
         try:
-            input_file = self._write_fol_input(fol_input, "mace4", save_input)
+            input_file = self._write_fol_input(fol_input, "mace4", save_input=True)
             result = subprocess.run(
                 [self.mace4_path, "-f", input_file],
                 stdout=subprocess.PIPE,
