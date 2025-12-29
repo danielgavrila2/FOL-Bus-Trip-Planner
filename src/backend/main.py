@@ -99,6 +99,8 @@ class TripResponse(BaseModel):
     proof_method: str
     alternative_routes: Optional[List[Any]] = None
     error: Optional[str] = None
+    mace4_output: str = None
+    prover9_output: str = None
 
 @app.get("/")
 def read_root():
@@ -398,7 +400,7 @@ def plan_trip(request: TripRequest):
                     include_direct_routes=request.include_direct_routes
                 )
 
-                mace4_output = fol_engine.run_mace4(fol_mace4, 
+                mace4_output, mace4_fname = fol_engine.run_mace4(fol_mace4, 
                                                     timeout=600, #max(30, len(candidate_path) * 2), 
                                                     save_input=request.save_input
                                                     )
@@ -419,7 +421,7 @@ def plan_trip(request: TripRequest):
         if path and not direct_route:
             fol_prover9 = fol_engine.generate_fol_verification(path)
 
-            prover9_output = fol_engine.run_prover9(fol_prover9, 
+            prover9_output, prover9_fname = fol_engine.run_prover9(fol_prover9, 
                                                     timeout=60, 
                                                     save_input=request.save_input
                                                     )
@@ -470,7 +472,9 @@ def plan_trip(request: TripRequest):
             total_transfers=transfers,
             total_cost=total_cost,
             tickets_needed=tickets_needed,
-            proof_method=proof_method
+            proof_method=proof_method,
+            mace4_output=mace4_fname,
+            prover9_output=prover9_fname
         )
 
     except HTTPException:

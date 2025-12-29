@@ -62,6 +62,8 @@ class FOLEngine:
 
         logger.info(f"Saved FOL output to {path}")
 
+        return filename, path
+
 # ----------------------------------------------------------------------------------------- #
 
 
@@ -188,12 +190,14 @@ class FOLEngine:
                 timeout=timeout,
             )
 
+            filename = ""
+            filepath = ""
             if save_input:
-                self._save_fol_output(result.stdout, "prover9", fol_input)
+                filename, filepath = self._save_fol_output(result.stdout, "prover9", fol_input)
 
             os.unlink(input_file)
             logger.info(f"Prover9 exit code: {result.returncode}")
-            return result.stdout
+            return result.stdout, filepath
 
         except subprocess.TimeoutExpired:
             return "TIMEOUT"
@@ -215,12 +219,14 @@ class FOLEngine:
 
             output = result.stdout or ""
 
+            filename = ""
+            filepath = ""
             if save_input:
-                self._save_fol_output(output, "mace4", fol_input)
+                filename, filepath = self._save_fol_output(output, "mace4", fol_input)
 
             os.unlink(input_file)
             logger.info(f"Mace4 exit code: {result.returncode}")
-            return output
+            return output, filepath
 
         except subprocess.TimeoutExpired:
             return "TIMEOUT"
