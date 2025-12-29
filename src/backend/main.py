@@ -294,8 +294,8 @@ def get_line_shape(route_id: str, direction: int = Query(0, description="Directi
     
     pattern_key = f"{route_id}_{direction}"
 
-    stops = graph_builder.route_patterns.get(pattern_key)
-    if not stops:
+    stops_seq = graph_builder.route_patterns.get(pattern_key)
+    if not stops_seq:
         raise HTTPException(status_code=404, detail=f"No route pattern found for route {route_id} direction = {direction}")
     
     shape_id = None
@@ -318,7 +318,7 @@ def get_line_shape(route_id: str, direction: int = Query(0, description="Directi
     ]
 
     stops = []
-    for sid in stops:
+    for sid in stops_seq:
         stop = graph_builder.stops.get(sid)
         if not stop:
             continue
