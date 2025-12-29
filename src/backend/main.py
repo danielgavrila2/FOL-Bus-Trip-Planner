@@ -1,10 +1,12 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
 import logging
+import os
 
 from services.tranzy_service import TranzyService
 from services.graph_builder import GraphBuilder
@@ -338,6 +340,14 @@ def get_line_shape(route_id: str, direction: int = Query(0, description="Directi
         "shape": shape,
         "stops": stops
     }
+
+@app.get("/proof/{filename}")
+def get_proof(filename: str):
+    path = f"src/backend/fol_outputs/{filename}"
+    if not os.path.exists(path):
+        raise HTTPException(404)
+    return FileResponse(path)
+
 
 
 @app.post("/plan", response_model=TripResponse)
