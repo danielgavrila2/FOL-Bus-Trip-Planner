@@ -8,9 +8,9 @@ logger = logging.getLogger(__name__)
 
 class TranzyService:
     def __init__(self):
-        load_dotenv()
+        load_dotenv() # Create .env file containing your Tranzy API key.
         self.api_key = os.getenv("TRANZY_API_KEY")
-        self.agency_id = os.getenv("AGENCY_ID", "2")  # Cluj-Napoca
+        self.agency_id = os.getenv("AGENCY_ID", "2")  # Agency = 2 -> Cluj-Napoca
         self.base_url = "https://api.tranzy.ai/v1/opendata"
         
         if not self.api_key:

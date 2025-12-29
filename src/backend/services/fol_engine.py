@@ -1,4 +1,3 @@
-# fol_engine.py
 import subprocess
 import tempfile
 import os
@@ -12,17 +11,22 @@ logger = logging.getLogger(__name__)
 
 
 class FOLEngine:
+    """
+    The core of our application. 
+    Here we perform the formalization, create and run provers to prove the goal.
+    """
+
     def __init__(
         self,
-        prover9_path: str = "src/backend/prover9/Prover9/LADR-2009-11A/bin/prover9",
+        prover9_path: str = "src/backend/prover9/Prover9/LADR-2009-11A/bin/prover9", # If not working, paste your full path to Prover9/Mace4
         mace4_path: str = "src/backend/prover9/Prover9/LADR-2009-11A/bin/mace4",
     ):
         self.prover9_path = prover9_path
         self.mace4_path = mace4_path
 
-    # -------------------------------------------------
+# ----------------------------------------------------------------------------------------- #
+
     # File helpers
-    # -------------------------------------------------
     def _write_fol_input(self, fol_input: str, prefix: str, save_input: bool = True) -> str:
         if fol_input is None:
             raise ValueError("FOL input is None")
@@ -58,9 +62,10 @@ class FOLEngine:
 
         logger.info(f"Saved FOL output to {path}")
 
-    # -------------------------------------------------
-    # Node remapping (CRITICAL FIX)
-    # -------------------------------------------------
+# ----------------------------------------------------------------------------------------- #
+
+
+    # Node remapping (used for reducing complexity on Prover9/Mace4 files)
     def _remap_nodes(self, fol_input: str):
         pattern = re.compile(r"\b\d+\b")
         numbers = sorted({int(x) for x in pattern.findall(fol_input)})
@@ -72,10 +77,10 @@ class FOLEngine:
         remapped = pattern.sub(repl, fol_input)
         return remapped, mapping
 
-    # -------------------------------------------------
-    # MACE4: existence check
-    # -------------------------------------------------
-    def generate_fol_existence(self, path: List[Dict], include_direct_routes: bool = True, save_input : bool = True) -> str:
+
+
+    # Mace4: existence of the route (check if we can find a route, including changes to reach the goal)
+    def generate_fol_existence(self, path: List[Dict], include_direct_routes: bool = True, save_input : bool = False) -> str:
         if not path:
             raise ValueError("Path is empty")
 
@@ -107,7 +112,6 @@ class FOLEngine:
         if save_input:
             self._write_fol_input(fol_input, "mace4", True)
 
-        # 🔑 FIX: RETURN REMAPPED INPUT
         fol_input_remapped, mapping = self._remap_nodes(fol_input)
         logger.info(
             f"Remapped {len(mapping)} nodes. Largest node: {max(mapping.values())}"
@@ -115,28 +119,28 @@ class FOLEngine:
 
         return fol_input_remapped
 
-    # -------------------------------------------------
-    # PROVER9: verification
-    # -------------------------------------------------
+
+    # Prover9: verification of the route (proof)
     def generate_fol_verification(self, path: List[Dict]) -> str:
         if not path:
             raise ValueError("Path is empty")
         
         lines = ["set(production)."] 
         lines.append("formulas(assumptions).")
+
+        # Essential update. Very important, due to Prover9's technical limitations.
         lines.append("assign(max_weight, 30).")
         lines.append("assign(max_proofs, 1).")  
         lines.append("assign(max_seconds, 30).")      
         lines.append("assign(sos_limit, 500).")   
         
-        # Add connections (remapped later)
+        # Add connections
         for seg in path:
             lines.append(f"connected({seg['from']},{seg['to']},r{seg['route']}).")
-            # Optionally add back if needed:
             # lines.append(f"on_route({seg['from']},r{seg['route']}).")
             # lines.append(f"on_route({seg['to']},r{seg['route']}).")
         
-        # Successor chain
+        # Forward chain
         for i in range(len(path)):
             lines.append(f"succ({i},{i+1}).")
         
@@ -159,10 +163,9 @@ class FOLEngine:
         lines.append(f"step({len(path)},{path[-1]['to']}).")
         lines.append("end_of_list.")
         
-        # Combine into single string
         fol_input = "\n".join(lines)
         
-        # Apply remapping (same as in generate_fol_existence)
+        # Apply remapping (reduce the number of variables in Prover9 .in file)
         fol_input_remapped, mapping = self._remap_nodes(fol_input)
         
         logger.info(
@@ -171,12 +174,11 @@ class FOLEngine:
         
         return fol_input_remapped
 
-    # -------------------------------------------------
-    # Run Prover9
-    # -------------------------------------------------
-    def run_prover9(self, fol_input: str, timeout: int = 600, save_input: bool = True) -> str:
+# ----------------------------------------------------------------------------------------- #
+
+    def run_prover9(self, fol_input: str, timeout: int = 600, save_input: bool = False) -> str:
         try:
-            input_file = self._write_fol_input(fol_input, "prover9", save_input=True)
+            input_file = self._write_fol_input(fol_input, "prover9", save_input)
             result = subprocess.run(
                 [self.prover9_path, "-f", input_file],
                 stdout=subprocess.PIPE,
@@ -198,9 +200,7 @@ class FOLEngine:
             logger.error(f"Prover9 error: {e}")
             return f"ERROR: {e}"
 
-    # -------------------------------------------------
     # Run Mace4
-    # -------------------------------------------------
     def run_mace4(self, fol_input: str, timeout: int = 600, save_input: bool = False) -> str:
         try:
             input_file = self._write_fol_input(fol_input, "mace4", save_input=True)

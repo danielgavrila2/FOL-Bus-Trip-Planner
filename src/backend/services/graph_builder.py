@@ -11,11 +11,11 @@ class GraphBuilder:
         self.connections: List[Dict[str, Any]] = []
         self.stop_name_to_id: Dict[str, str] = {}
         self.shapes: Dict[str, List[Dict]] = {}
-        # New: Store route patterns (each direction separately)
+
         self.route_patterns: Dict[str, List[str]] = {}  # route_id+direction -> ordered stop list
-        # New: Adjacency list for quick neighbor lookup
         self.stop_neighbors: Dict[str, List[Dict]] = {}  # stop_id -> [{to, route, route_name}]
     
+    # Get the distance in meters, based on latitude and longitude, mandatory due to Tranzy's API limitation, when mapping the stops to routes.
     def haversine_distance(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
         """Calculate distance between two points in meters using Haversine formula"""
         R = 6371000  # Earth radius in meters
@@ -78,13 +78,15 @@ class GraphBuilder:
     def extract_direction_from_shape_id(self, shape_id: str) -> Tuple[str, str]:
         """
         Extract route base and direction from shape_id.
-        Examples: "35_0" -> ("35", "0"), "35_1" -> ("35", "1")
+        Examples: "35_0" -> ("35", "0") is the forward way (Piata Garii -> Cart. Zorilor), 
+                  "35_1" -> ("35", "1") is the backward way (Cart. Zorilor -> Piata Garii)
         """
         parts = shape_id.split('_')
         if len(parts) >= 2:
             return '_'.join(parts[:-1]), parts[-1]
         return shape_id, "0"
     
+
     def build_graph(self, stops: List[Dict], routes: List[Dict], trips: List[Dict] = None, 
                     stop_times: List[Dict] = None, shapes: List[Dict] = None):
         """Build graph from stops, routes, trips, stop_times, and shapes data"""
@@ -145,6 +147,9 @@ class GraphBuilder:
         logger.info(f"Built graph: {len(self.stops)} stops, {len(self.routes)} routes, "
                    f"{len(self.connections)} connections, {len(self.route_patterns)} route patterns")
     
+
+
+    # By adjusting the threshold you can cover more or less stops along the shape.
     def _build_connections_from_shapes_with_direction(self, trips: List[Dict], threshold_meters: float = 20):
         """
         Build connections using shape data, treating each direction separately.
@@ -152,7 +157,6 @@ class GraphBuilder:
         """
         from collections import defaultdict
         
-        # Group trips by route and shape
         route_shapes = defaultdict(set)
         shape_to_route = {}
         
@@ -202,7 +206,7 @@ class GraphBuilder:
                         "route": route_id,
                         "route_name": route_name,
                         "pattern": pattern_key,
-                        "duration_minutes": 3  # Reduced from 5 for more realistic times
+                        "duration_minutes": 3  # Basic time between station. It can be adjusted by traffic using Maps API.
                     })
         
         logger.info(f"Created {len(self.connections)} connections from {len(self.route_patterns)} route patterns")
@@ -297,7 +301,7 @@ class GraphBuilder:
         if stop_identifier in self.stops:
             return stop_identifier
         
-        # Try as name (case-insensitive, fuzzy)
+        # Try as name
         normalized = stop_identifier.lower().strip()
         
         # Exact match

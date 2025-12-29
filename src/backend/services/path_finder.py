@@ -25,14 +25,14 @@ class PathFinder:
         """
         logger.info(f"Pathfinding from {start} to {goal}")
         
-        # PRIORITY 1: Check if we can reach goal on a single route (no transfers)
+        # PRIORITY 1: Check if we can reach goal using the direct route (if exists)
         if self.graph_builder:
             single_route = self.graph_builder.can_reach_on_single_route(start, goal)
             if single_route:
                 logger.info(f"Found direct route: {single_route['route_name']} "
                            f"({single_route['num_stops']} stops, no transfers)")
                 
-                # Build path from the single route
+                # Build path from the direct route
                 path = []
                 stops = single_route['stops_between']
                 for i in range(len(stops) - 1):
@@ -47,9 +47,11 @@ class PathFinder:
                 
                 return path
         
-        # PRIORITY 2: Use BFS with transfer penalty
+        # PRIORITY 2: Use BFS with transfer penalty to minimize the changes
         return self._bfs_with_transfer_penalty(connections, start, goal, prefer_fewer_transfers)
     
+    
+    # You can optimize this, by updating the graph with the timetable for a more realistic schedule
     def _bfs_with_transfer_penalty(
         self,
         connections: List[Dict],
@@ -77,7 +79,6 @@ class PathFinder:
                 return []
             return None
         
-        # Counter for tiebreaking in heap (avoids comparing dicts)
         counter = itertools.count()
         
         # Priority queue: (transfers, stops, counter, current_stop, path, current_route, current_pattern)
@@ -164,6 +165,7 @@ class PathFinder:
         logger.warning(f"No path found from {start} to {goal}")
         return None
     
+
     def count_transfers(self, path: List[Dict]) -> int:
         """Count number of transfers in a path"""
         if not path:

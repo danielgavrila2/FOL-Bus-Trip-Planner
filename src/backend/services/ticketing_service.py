@@ -5,8 +5,8 @@ logger = logging.getLogger(__name__)
 
 class TicketingService:
     def __init__(self):
-        self.ticket_price = 3.5  # RON
-        self.ticket_validity = 45  # minutes
+        self.ticket_price = 3.5  # 3.5 RON is the basic price for a bus ticket in Cluj-Napoca
+        self.ticket_validity = 45  # The validity of one ticket. In Cluj-Napoca one ticket is available for 45 minutes.
     
     def calculate_tickets(
         self, 
