@@ -32,11 +32,11 @@ class FOLEngine:
             raise ValueError("FOL input is None")
 
         if save_input:
-            os.makedirs("fol_inputs", exist_ok=True)
+            os.makedirs("src/backend/fol_inputs", exist_ok=True)
             timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
             content_hash = hashlib.md5(fol_input.encode()).hexdigest()[:8]
             filename = f"{prefix}_{timestamp}_{content_hash}.in"
-            path = os.path.join("fol_inputs", filename)
+            path = os.path.join("src/backend/fol_inputs", filename)
             with open(path, "w") as f:
                 f.write(fol_input)
             logger.info(f"Saved FOL input to {path}")
@@ -51,11 +51,11 @@ class FOLEngine:
         if output is None:
             output = ""
 
-        os.makedirs("fol_outputs", exist_ok=True)
+        os.makedirs("src/backend/fol_outputs", exist_ok=True)
         timestamp = datetime.utcnow().strftime("%Y-%m-%dT%H-%M-%S")
         content_hash = hashlib.md5(fol_input.encode()).hexdigest()[:8]
         filename = f"{prefix}_{timestamp}_{content_hash}.out"
-        path = os.path.join("fol_outputs", filename)
+        path = os.path.join("src/backend/fol_outputs", filename)
 
         with open(path, "w") as f:
             f.write(output)
@@ -179,6 +179,7 @@ class FOLEngine:
     def run_prover9(self, fol_input: str, timeout: int = 600, save_input: bool = False) -> str:
         try:
             input_file = self._write_fol_input(fol_input, "prover9", save_input)
+            
             result = subprocess.run(
                 [self.prover9_path, "-f", input_file],
                 stdout=subprocess.PIPE,

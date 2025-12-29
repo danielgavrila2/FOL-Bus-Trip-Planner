@@ -335,9 +335,9 @@ def plan_trip(request: TripRequest):
 
                 # If Mace4 finds a model, path exists
                 if "Exiting" in mace4_output or "model" in mace4_output.lower():
-                    proof_method = "Mace4 (Path Exists)"
+                    proof_method = "Mace4 (Path model found)"
                 else:
-                    proof_method = "BFS (FOL failed)"
+                    proof_method = "BFS (Mace4 failed)"
                 
                 path = candidate_path
             else:
@@ -346,12 +346,18 @@ def plan_trip(request: TripRequest):
 
 
         # Verify path with Prover9
-        fol_prover9 = fol_engine.generate_fol_verification(path)
-        prover9_output = fol_engine.run_prover9(fol_prover9, timeout=60, save_input=True)
-        if "THEOREM PROVED" in prover9_output:
-            proof_method += " + Prover9 Verified"
-        else:
-            proof_method += " + Prover9 Verification Failed"
+        if path and not direct_route:
+            fol_prover9 = fol_engine.generate_fol_verification(path)
+
+            prover9_output = fol_engine.run_prover9(fol_prover9, 
+                                                    timeout=60, 
+                                                    save_input=True
+                                                    )
+            
+            if "THEOREM PROVED" in prover9_output:
+                proof_method += " + Prover9 Verified"
+            else:
+                proof_method += " + Prover9 Verification Failed"
 
 
         # Step 4: Build RouteSegments
