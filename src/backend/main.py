@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
@@ -282,6 +282,63 @@ def check_direct_route(start: str, end: str):
         "direct_route_available": False,
         "message": "No single route connects these stops. Transfers required."
     }
+
+@app.get("/routes/{route_id}/shape")
+def get_line_shape(route_id: str, direction: int = Query(0, description="Direction (0 = fwd, 1 = bwd)")):
+    if not (direction == 1 or direction == 0):
+        raise HTTPException(status_code=400, detail="Invalid direction. It should be either 0 or 1.")
+    
+    route = graph_builder.routes.get(route_id)
+    if not route:
+        raise HTTPException(status_code=404, detail="Route was not found")
+    
+    pattern_key = f"{route_id}_{direction}"
+
+    stops = graph_builder.route_patterns.get(pattern_key)
+    if not stops:
+        raise HTTPException(status_code=404, detail=f"No route pattern found for route {route_id} direction = {direction}")
+    
+    shape_id = None
+    for sid in graph_builder.shapes.keys():
+        id, d = graph_builder.extract_direction_from_shape_id(sid)
+        if id == route_id and d == str(direction):
+            shape_id = sid
+            break
+
+    if not shape_id:
+        raise HTTPException(status_code=404, detail="Shape was not found")
+    
+    shape = [
+        {
+            "lat": p.get("shape_pt_lat", p.get("lat")),
+            "lon": p.get("shape_pt_lon", p.get("lon")),
+            "seq": p.get("shape_pt_sequence", p.get("sequence")) 
+        }
+        for p in graph_builder.shapes[shape_id]
+    ]
+
+    stops = []
+    for sid in stops:
+        stop = graph_builder.stops.get(sid)
+        if not stop:
+            continue
+
+        stops.append({
+            "id": sid,
+            "name": stop.get("stop_name", stop.get("name")),
+            "lat": stop.get("stop_lat", stop.get("lat")),
+            "lon": stop.get("stop_lon", stop.get("lon"))
+        })
+
+    return {
+        "route_id": route_id,
+        "route_name": route.get("route_short_name", route.get("short_name", route_id)),
+        "direction": direction,
+        "pattern": pattern_key,
+        "shape": shape,
+        "stops": stops
+    }
+
 
 @app.post("/plan", response_model=TripResponse)
 def plan_trip(request: TripRequest):
