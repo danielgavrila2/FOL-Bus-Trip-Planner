@@ -42,7 +42,7 @@ class FOLEngine:
             logger.info(f"Saved FOL input to {path}")
             return path
 
-        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".in", delete=False)
+        tmp = tempfile.NamedTemporaryFile(mode="w", suffix=".in", delete=True)
         tmp.write(fol_input)
         tmp.close()
         return tmp.name
@@ -178,7 +178,7 @@ class FOLEngine:
 
     def run_prover9(self, fol_input: str, timeout: int = 600, save_input: bool = False) -> str:
         try:
-            input_file = self._write_fol_input(fol_input, "prover9", save_input)
+            input_file = self._write_fol_input(fol_input, "prover9", save_input=save_input)
             
             result = subprocess.run(
                 [self.prover9_path, "-f", input_file],
@@ -204,7 +204,7 @@ class FOLEngine:
     # Run Mace4
     def run_mace4(self, fol_input: str, timeout: int = 600, save_input: bool = False) -> str:
         try:
-            input_file = self._write_fol_input(fol_input, "mace4", save_input=True)
+            input_file = self._write_fol_input(fol_input, "mace4", save_input=save_input)
             result = subprocess.run(
                 [self.mace4_path, "-f", input_file],
                 stdout=subprocess.PIPE,

@@ -72,6 +72,8 @@ class TripRequest(BaseModel):
     end_stop: str
     departure_time: Optional[str] = None  
     prefer_fewer_transfers: bool = True
+    save_input : bool = False
+    include_direct_routes : bool = True
 
 class RouteSegment(BaseModel):
     from_stop: str
@@ -326,11 +328,12 @@ def plan_trip(request: TripRequest):
                 # Generate FOL for Mace4 with only relevant nodes and optional direct routes
                 fol_mace4 = fol_engine.generate_fol_existence(
                     path=candidate_path,
-                    include_direct_routes=True
+                    include_direct_routes=request.include_direct_routes
                 )
+
                 mace4_output = fol_engine.run_mace4(fol_mace4, 
                                                     timeout=600, #max(30, len(candidate_path) * 2), 
-                                                    save_input=True
+                                                    save_input=request.save_input
                                                     )
 
                 # If Mace4 finds a model, path exists
@@ -351,7 +354,7 @@ def plan_trip(request: TripRequest):
 
             prover9_output = fol_engine.run_prover9(fol_prover9, 
                                                     timeout=60, 
-                                                    save_input=True
+                                                    save_input=request.save_input
                                                     )
             
             if "THEOREM PROVED" in prover9_output:
