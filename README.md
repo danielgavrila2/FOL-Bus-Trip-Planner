@@ -2,7 +2,46 @@
 
 An intelligent bus trip planning system for Cluj-Napoca, Romania, that uses **First-Order Logic (FOL)** reasoning with **Prover9** and **Mace4** theorem provers to verify and validate routes. Built for academic purposes as part of the Artificial Intelligence Laboratory curriculum.
 
-![Project Banner](docs/images/banner.png)
+## 🏷️ Technologies
+
+### Backend
+![Python](https://img.shields.io/badge/Python-3.9+-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![Prover9](https://img.shields.io/badge/Prover9-Theorem_Proving-orange?style=for-the-badge)
+![Mace4](https://img.shields.io/badge/Mace4-Model_Finding-red?style=for-the-badge)
+
+### Frontend
+![React](https://img.shields.io/badge/React-18-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white)
+![Leaflet](https://img.shields.io/badge/Leaflet-199900?style=for-the-badge&logo=leaflet&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)
+
+### APIs & Services
+![Tranzy API](https://img.shields.io/badge/Tranzy_API-GTFS_Data-blue?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHRleHQgeD0iNSIgeT0iMTgiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IndoaXRlIj7wn5qMPC90ZXh0Pjwvc3ZnPg==)
+![OpenStreetMap](https://img.shields.io/badge/OpenStreetMap-7EBC6F?style=for-the-badge&logo=openstreetmap&logoColor=white)
+
+### Development Tools
+![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-Ready-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![VS Code](https://img.shields.io/badge/VS_Code-007ACC?style=for-the-badge&logo=visual-studio-code&logoColor=white)
+
+### Academic Focus
+![AI](https://img.shields.io/badge/Artificial_Intelligence-FF6F00?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHRleHQgeD0iNSIgeT0iMTgiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IndoaXRlIj7wn6egPC90ZXh0Pjwvc3ZnPg==)
+![FOL](https://img.shields.io/badge/First_Order_Logic-purple?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHRleHQgeD0iNSIgeT0iMTgiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IndoaXRlIj7iiAA8L3RleHQ+PC9zdmc+)
+![Automated Reasoning](https://img.shields.io/badge/Automated_Reasoning-green?style=for-the-badge&logo=data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PHRleHQgeD0iNSIgeT0iMTgiIGZvbnQtc2l6ZT0iMTgiIGZpbGw9IndoaXRlIj7inJM8L3RleHQ+PC9zdmc+)
+
+---
+
+## 📊 Project Stats
+
+![GitHub repo size](https://img.shields.io/github/repo-size/danielgavrila2/FOL-Bus-Trip-Planner?style=flat-square)
+![GitHub stars](https://img.shields.io/github/stars/danielgavrila2/FOL-Bus-Trip-Planner?style=flat-square)
+![GitHub forks](https://img.shields.io/github/forks/danielgavrila2/FOL-Bus-Trip-Planner?style=flat-square)
+![GitHub issues](https://img.shields.io/github/issues/danielgavrila2/FOL-Bus-Trip-Planner?style=flat-square)
+![GitHub license](https://img.shields.io/github/license/danielgavrila2/FOL-Bus-Trip-Planner?style=flat-square)
+
+---
+
 
 ## 📋 Table of Contents
 
