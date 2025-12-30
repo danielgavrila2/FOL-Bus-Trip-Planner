@@ -1,0 +1,539 @@
+============================== Prover9 ===============================
+Prover9 (64) version 2017-11A (CIIRC), November 2017.
+Process 59707 was started by dani on Ubuntu,
+Tue Dec 30 00:34:46 2025
+The command was "src/backend/prover9/Prover9/LADR-2009-11A/bin/prover9 -f src/backend/fol_inputs/prover9_2025-12-30T00-34-46_9cd97918.in".
+============================== end of head ===========================
+
+============================== INPUT =================================
+
+% Reading from file src/backend/fol_inputs/prover9_2025-12-30T00-34-46_9cd97918.in
+
+set(production).
+    % set(production) -> set(raw).
+    % set(raw) -> clear(auto).
+    % clear(auto) -> clear(auto_inference).
+    % clear(auto) -> clear(auto_setup).
+    % clear(auto_setup) -> clear(predicate_elim).
+    % clear(auto_setup) -> assign(eq_defs, pass).
+    % clear(auto) -> clear(auto_limits).
+    % clear(auto_limits) -> assign(max_weight, "1000000000000.000").
+    % clear(auto_limits) -> assign(sos_limit, -1).
+    % clear(auto) -> clear(auto_denials).
+    % clear(auto) -> clear(auto_process).
+    % set(raw) -> clear(ordered_res).
+    % set(raw) -> clear(ordered_para).
+    % set(raw) -> set(para_into_vars).
+    % set(raw) -> set(para_from_small).
+    % set(raw) -> clear(ordered_para).
+    % set(raw) -> clear(back_demod).
+    % set(raw) -> clear(cac_redundancy).
+    % set(raw) -> assign(backsub_check, 2147483647).
+    % set(raw) -> set(lightest_first).
+    % set(lightest_first) -> assign(weight_part, 1).
+    % set(lightest_first) -> assign(age_part, 0).
+    % set(lightest_first) -> assign(false_part, 0).
+    % set(lightest_first) -> assign(true_part, 0).
+    % set(lightest_first) -> assign(random_part, 0).
+    % set(raw) -> assign(literal_selection, none).
+    % set(production) -> set(eval_rewrite).
+    % set(production) -> set(hyper_resolution).
+    % set(hyper_resolution) -> set(pos_hyper_resolution).
+    % set(production) -> clear(back_subsume).
+
+formulas(assumptions).
+assign(max_weight,17).
+assign(max_proofs,1).
+assign(max_seconds,17).
+assign(sos_limit,32).
+connected(29,28,r84).
+connected(28,30,r84).
+connected(30,27,r84).
+connected(27,31,r84).
+connected(31,24,r84).
+connected(24,25,r84).
+connected(25,26,r176).
+connected(26,22,r176).
+connected(22,23,r176).
+connected(23,16,r176).
+connected(16,9,r176).
+connected(9,20,r176).
+connected(20,21,r176).
+connected(21,19,r176).
+connected(19,18,r3).
+succ(0,1).
+succ(1,2).
+succ(2,3).
+succ(3,4).
+succ(4,5).
+succ(5,6).
+succ(6,7).
+succ(7,8).
+succ(8,9).
+succ(9,10).
+succ(10,11).
+succ(11,12).
+succ(12,13).
+succ(13,14).
+succ(14,15).
+step(0,29).
+uses(1,r84).
+uses(2,r84).
+uses(3,r84).
+uses(4,r84).
+uses(5,r84).
+uses(6,r84).
+uses(7,r176).
+uses(8,r176).
+uses(9,r176).
+uses(10,r176).
+uses(11,r176).
+uses(12,r176).
+uses(13,r176).
+uses(14,r176).
+uses(15,r3).
+(all N all M all X all Y all R (step(N,X) & succ(N,M) & uses(M,R) & connected(X,Y,R) -> step(M,Y))).
+end_of_list.
+
+formulas(goals).
+step(15,18).
+end_of_list.
+
+============================== end of input ==========================
+
+============================== PROCESS NON-CLAUSAL FORMULAS ==========
+
+% Formulas that are not ordinary clauses:
+1 (all N all M all X all Y all R (step(N,X) & succ(N,M) & uses(M,R) & connected(X,Y,R) -> step(M,Y))) # label(non_clause).  [assumption].
+2 step(15,18) # label(non_clause) # label(goal).  [goal].
+
+============================== end of process non-clausal formulas ===
+
+============================== PROCESS INITIAL CLAUSES ===============
+
+% Clauses before input processing:
+
+formulas(usable).
+end_of_list.
+
+formulas(sos).
+assign(max_weight,17).  [assumption].
+assign(max_proofs,1).  [assumption].
+assign(max_seconds,17).  [assumption].
+assign(sos_limit,32).  [assumption].
+connected(29,28,r84).  [assumption].
+connected(28,30,r84).  [assumption].
+connected(30,27,r84).  [assumption].
+connected(27,31,r84).  [assumption].
+connected(31,24,r84).  [assumption].
+connected(24,25,r84).  [assumption].
+connected(25,26,r176).  [assumption].
+connected(26,22,r176).  [assumption].
+connected(22,23,r176).  [assumption].
+connected(23,16,r176).  [assumption].
+connected(16,9,r176).  [assumption].
+connected(9,20,r176).  [assumption].
+connected(20,21,r176).  [assumption].
+connected(21,19,r176).  [assumption].
+connected(19,18,r3).  [assumption].
+succ(0,1).  [assumption].
+succ(1,2).  [assumption].
+succ(2,3).  [assumption].
+succ(3,4).  [assumption].
+succ(4,5).  [assumption].
+succ(5,6).  [assumption].
+succ(6,7).  [assumption].
+succ(7,8).  [assumption].
+succ(8,9).  [assumption].
+succ(9,10).  [assumption].
+succ(10,11).  [assumption].
+succ(11,12).  [assumption].
+succ(12,13).  [assumption].
+succ(13,14).  [assumption].
+succ(14,15).  [assumption].
+step(0,29).  [assumption].
+uses(1,r84).  [assumption].
+uses(2,r84).  [assumption].
+uses(3,r84).  [assumption].
+uses(4,r84).  [assumption].
+uses(5,r84).  [assumption].
+uses(6,r84).  [assumption].
+uses(7,r176).  [assumption].
+uses(8,r176).  [assumption].
+uses(9,r176).  [assumption].
+uses(10,r176).  [assumption].
+uses(11,r176).  [assumption].
+uses(12,r176).  [assumption].
+uses(13,r176).  [assumption].
+uses(14,r176).  [assumption].
+uses(15,r3).  [assumption].
+-step(x,y) | -succ(x,z) | -uses(z,u) | -connected(y,w,u) | step(z,w).  [clausify(1)].
+-step(15,18).  [deny(2)].
+end_of_list.
+
+formulas(demodulators).
+end_of_list.
+
+Term ordering decisions:
+Predicate symbol precedence:  predicate_order([ succ, uses, assign, step, connected ]).
+Function symbol precedence:  function_order([ r176, r84, 9, 1, 10, 11, 12, 13, 14, 2, 3, 4, 5, 6, 7, 8, 0, 15, 16, 17, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, r3, 18, 32, max_proofs, max_seconds, max_weight, sos_limit ]).
+After inverse_order:  (no changes).
+
+kept:      3 assign(max_weight,17).  [assumption].
+kept:      4 assign(max_proofs,1).  [assumption].
+kept:      5 assign(max_seconds,17).  [assumption].
+kept:      6 assign(sos_limit,32).  [assumption].
+kept:      7 connected(29,28,r84).  [assumption].
+kept:      8 connected(28,30,r84).  [assumption].
+kept:      9 connected(30,27,r84).  [assumption].
+kept:      10 connected(27,31,r84).  [assumption].
+kept:      11 connected(31,24,r84).  [assumption].
+kept:      12 connected(24,25,r84).  [assumption].
+kept:      13 connected(25,26,r176).  [assumption].
+kept:      14 connected(26,22,r176).  [assumption].
+kept:      15 connected(22,23,r176).  [assumption].
+kept:      16 connected(23,16,r176).  [assumption].
+kept:      17 connected(16,9,r176).  [assumption].
+kept:      18 connected(9,20,r176).  [assumption].
+kept:      19 connected(20,21,r176).  [assumption].
+kept:      20 connected(21,19,r176).  [assumption].
+kept:      21 connected(19,18,r3).  [assumption].
+kept:      22 succ(0,1).  [assumption].
+kept:      23 succ(1,2).  [assumption].
+kept:      24 succ(2,3).  [assumption].
+kept:      25 succ(3,4).  [assumption].
+kept:      26 succ(4,5).  [assumption].
+kept:      27 succ(5,6).  [assumption].
+kept:      28 succ(6,7).  [assumption].
+kept:      29 succ(7,8).  [assumption].
+kept:      30 succ(8,9).  [assumption].
+kept:      31 succ(9,10).  [assumption].
+kept:      32 succ(10,11).  [assumption].
+kept:      33 succ(11,12).  [assumption].
+kept:      34 succ(12,13).  [assumption].
+kept:      35 succ(13,14).  [assumption].
+kept:      36 succ(14,15).  [assumption].
+kept:      37 step(0,29).  [assumption].
+kept:      38 uses(1,r84).  [assumption].
+kept:      39 uses(2,r84).  [assumption].
+kept:      40 uses(3,r84).  [assumption].
+kept:      41 uses(4,r84).  [assumption].
+kept:      42 uses(5,r84).  [assumption].
+kept:      43 uses(6,r84).  [assumption].
+kept:      44 uses(7,r176).  [assumption].
+kept:      45 uses(8,r176).  [assumption].
+kept:      46 uses(9,r176).  [assumption].
+kept:      47 uses(10,r176).  [assumption].
+kept:      48 uses(11,r176).  [assumption].
+kept:      49 uses(12,r176).  [assumption].
+kept:      50 uses(13,r176).  [assumption].
+kept:      51 uses(14,r176).  [assumption].
+kept:      52 uses(15,r3).  [assumption].
+kept:      53 -step(x,y) | -succ(x,z) | -uses(z,u) | -connected(y,w,u) | step(z,w).  [clausify(1)].
+kept:      54 -step(15,18).  [deny(2)].
+
+============================== end of process initial clauses ========
+
+============================== CLAUSES FOR SEARCH ====================
+
+% Clauses after input processing:
+
+formulas(usable).
+end_of_list.
+
+formulas(sos).
+3 assign(max_weight,17).  [assumption].
+4 assign(max_proofs,1).  [assumption].
+5 assign(max_seconds,17).  [assumption].
+6 assign(sos_limit,32).  [assumption].
+7 connected(29,28,r84).  [assumption].
+8 connected(28,30,r84).  [assumption].
+9 connected(30,27,r84).  [assumption].
+10 connected(27,31,r84).  [assumption].
+11 connected(31,24,r84).  [assumption].
+12 connected(24,25,r84).  [assumption].
+13 connected(25,26,r176).  [assumption].
+14 connected(26,22,r176).  [assumption].
+15 connected(22,23,r176).  [assumption].
+16 connected(23,16,r176).  [assumption].
+17 connected(16,9,r176).  [assumption].
+18 connected(9,20,r176).  [assumption].
+19 connected(20,21,r176).  [assumption].
+20 connected(21,19,r176).  [assumption].
+21 connected(19,18,r3).  [assumption].
+22 succ(0,1).  [assumption].
+23 succ(1,2).  [assumption].
+24 succ(2,3).  [assumption].
+25 succ(3,4).  [assumption].
+26 succ(4,5).  [assumption].
+27 succ(5,6).  [assumption].
+28 succ(6,7).  [assumption].
+29 succ(7,8).  [assumption].
+30 succ(8,9).  [assumption].
+31 succ(9,10).  [assumption].
+32 succ(10,11).  [assumption].
+33 succ(11,12).  [assumption].
+34 succ(12,13).  [assumption].
+35 succ(13,14).  [assumption].
+36 succ(14,15).  [assumption].
+37 step(0,29).  [assumption].
+38 uses(1,r84).  [assumption].
+39 uses(2,r84).  [assumption].
+40 uses(3,r84).  [assumption].
+41 uses(4,r84).  [assumption].
+42 uses(5,r84).  [assumption].
+43 uses(6,r84).  [assumption].
+44 uses(7,r176).  [assumption].
+45 uses(8,r176).  [assumption].
+46 uses(9,r176).  [assumption].
+47 uses(10,r176).  [assumption].
+48 uses(11,r176).  [assumption].
+49 uses(12,r176).  [assumption].
+50 uses(13,r176).  [assumption].
+51 uses(14,r176).  [assumption].
+52 uses(15,r3).  [assumption].
+53 -step(x,y) | -succ(x,z) | -uses(z,u) | -connected(y,w,u) | step(z,w).  [clausify(1)].
+54 -step(15,18).  [deny(2)].
+end_of_list.
+
+formulas(demodulators).
+end_of_list.
+
+============================== end of clauses for search =============
+
+============================== SEARCH ================================
+
+% Starting search at 0.00 seconds.
+
+given #1 (I,wt=3): 3 assign(max_weight,17).  [assumption].
+
+given #2 (I,wt=3): 4 assign(max_proofs,1).  [assumption].
+
+given #3 (I,wt=3): 5 assign(max_seconds,17).  [assumption].
+
+given #4 (I,wt=3): 6 assign(sos_limit,32).  [assumption].
+
+given #5 (I,wt=4): 7 connected(29,28,r84).  [assumption].
+
+given #6 (I,wt=4): 8 connected(28,30,r84).  [assumption].
+
+given #7 (I,wt=4): 9 connected(30,27,r84).  [assumption].
+
+given #8 (I,wt=4): 10 connected(27,31,r84).  [assumption].
+
+given #9 (I,wt=4): 11 connected(31,24,r84).  [assumption].
+
+given #10 (I,wt=4): 12 connected(24,25,r84).  [assumption].
+
+given #11 (I,wt=4): 13 connected(25,26,r176).  [assumption].
+
+given #12 (I,wt=4): 14 connected(26,22,r176).  [assumption].
+
+given #13 (I,wt=4): 15 connected(22,23,r176).  [assumption].
+
+given #14 (I,wt=4): 16 connected(23,16,r176).  [assumption].
+
+given #15 (I,wt=4): 17 connected(16,9,r176).  [assumption].
+
+given #16 (I,wt=4): 18 connected(9,20,r176).  [assumption].
+
+given #17 (I,wt=4): 19 connected(20,21,r176).  [assumption].
+
+given #18 (I,wt=4): 20 connected(21,19,r176).  [assumption].
+
+given #19 (I,wt=4): 21 connected(19,18,r3).  [assumption].
+
+given #20 (I,wt=3): 22 succ(0,1).  [assumption].
+
+given #21 (I,wt=3): 23 succ(1,2).  [assumption].
+
+given #22 (I,wt=3): 24 succ(2,3).  [assumption].
+
+given #23 (I,wt=3): 25 succ(3,4).  [assumption].
+
+given #24 (I,wt=3): 26 succ(4,5).  [assumption].
+
+given #25 (I,wt=3): 27 succ(5,6).  [assumption].
+
+given #26 (I,wt=3): 28 succ(6,7).  [assumption].
+
+given #27 (I,wt=3): 29 succ(7,8).  [assumption].
+
+given #28 (I,wt=3): 30 succ(8,9).  [assumption].
+
+given #29 (I,wt=3): 31 succ(9,10).  [assumption].
+
+given #30 (I,wt=3): 32 succ(10,11).  [assumption].
+
+given #31 (I,wt=3): 33 succ(11,12).  [assumption].
+
+given #32 (I,wt=3): 34 succ(12,13).  [assumption].
+
+given #33 (I,wt=3): 35 succ(13,14).  [assumption].
+
+given #34 (I,wt=3): 36 succ(14,15).  [assumption].
+
+given #35 (I,wt=3): 37 step(0,29).  [assumption].
+
+given #36 (I,wt=3): 38 uses(1,r84).  [assumption].
+
+given #37 (I,wt=3): 39 uses(2,r84).  [assumption].
+
+given #38 (I,wt=3): 40 uses(3,r84).  [assumption].
+
+given #39 (I,wt=3): 41 uses(4,r84).  [assumption].
+
+given #40 (I,wt=3): 42 uses(5,r84).  [assumption].
+
+given #41 (I,wt=3): 43 uses(6,r84).  [assumption].
+
+given #42 (I,wt=3): 44 uses(7,r176).  [assumption].
+
+given #43 (I,wt=3): 45 uses(8,r176).  [assumption].
+
+given #44 (I,wt=3): 46 uses(9,r176).  [assumption].
+
+given #45 (I,wt=3): 47 uses(10,r176).  [assumption].
+
+given #46 (I,wt=3): 48 uses(11,r176).  [assumption].
+
+given #47 (I,wt=3): 49 uses(12,r176).  [assumption].
+
+given #48 (I,wt=3): 50 uses(13,r176).  [assumption].
+
+given #49 (I,wt=3): 51 uses(14,r176).  [assumption].
+
+given #50 (I,wt=3): 52 uses(15,r3).  [assumption].
+
+given #51 (I,wt=16): 53 -step(x,y) | -succ(x,z) | -uses(z,u) | -connected(y,w,u) | step(z,w).  [clausify(1)].
+
+given #52 (I,wt=3): 54 -step(15,18).  [deny(2)].
+
+given #53 (W,wt=3): 55 step(1,28).  [hyper(53,a,37,a,b,22,a,c,38,a,d,7,a)].
+
+given #54 (W,wt=3): 56 step(2,30).  [hyper(53,a,55,a,b,23,a,c,39,a,d,8,a)].
+
+given #55 (W,wt=3): 57 step(3,27).  [hyper(53,a,56,a,b,24,a,c,40,a,d,9,a)].
+
+given #56 (W,wt=3): 58 step(4,31).  [hyper(53,a,57,a,b,25,a,c,41,a,d,10,a)].
+
+given #57 (W,wt=3): 59 step(5,24).  [hyper(53,a,58,a,b,26,a,c,42,a,d,11,a)].
+
+given #58 (W,wt=3): 60 step(6,25).  [hyper(53,a,59,a,b,27,a,c,43,a,d,12,a)].
+
+given #59 (W,wt=3): 61 step(7,26).  [hyper(53,a,60,a,b,28,a,c,44,a,d,13,a)].
+
+given #60 (W,wt=3): 62 step(8,22).  [hyper(53,a,61,a,b,29,a,c,45,a,d,14,a)].
+
+given #61 (W,wt=3): 63 step(9,23).  [hyper(53,a,62,a,b,30,a,c,46,a,d,15,a)].
+
+given #62 (W,wt=3): 64 step(10,16).  [hyper(53,a,63,a,b,31,a,c,47,a,d,16,a)].
+
+given #63 (W,wt=3): 65 step(11,9).  [hyper(53,a,64,a,b,32,a,c,48,a,d,17,a)].
+
+given #64 (W,wt=3): 66 step(12,20).  [hyper(53,a,65,a,b,33,a,c,49,a,d,18,a)].
+
+given #65 (W,wt=3): 67 step(13,21).  [hyper(53,a,66,a,b,34,a,c,50,a,d,19,a)].
+
+given #66 (W,wt=3): 68 step(14,19).  [hyper(53,a,67,a,b,35,a,c,51,a,d,20,a)].
+
+============================== PROOF =================================
+
+% Proof 1 at 0.01 (+ 0.00) seconds.
+% Length of proof is 66.
+% Level of proof is 17.
+% Maximum clause weight is 16.000.
+% Given clauses 66 (3.882 givens/level).
+
+1 (all N all M all X all Y all R (step(N,X) & succ(N,M) & uses(M,R) & connected(X,Y,R) -> step(M,Y))) # label(non_clause).  [assumption].
+2 step(15,18) # label(non_clause) # label(goal).  [goal].
+7 connected(29,28,r84).  [assumption].
+8 connected(28,30,r84).  [assumption].
+9 connected(30,27,r84).  [assumption].
+10 connected(27,31,r84).  [assumption].
+11 connected(31,24,r84).  [assumption].
+12 connected(24,25,r84).  [assumption].
+13 connected(25,26,r176).  [assumption].
+14 connected(26,22,r176).  [assumption].
+15 connected(22,23,r176).  [assumption].
+16 connected(23,16,r176).  [assumption].
+17 connected(16,9,r176).  [assumption].
+18 connected(9,20,r176).  [assumption].
+19 connected(20,21,r176).  [assumption].
+20 connected(21,19,r176).  [assumption].
+21 connected(19,18,r3).  [assumption].
+22 succ(0,1).  [assumption].
+23 succ(1,2).  [assumption].
+24 succ(2,3).  [assumption].
+25 succ(3,4).  [assumption].
+26 succ(4,5).  [assumption].
+27 succ(5,6).  [assumption].
+28 succ(6,7).  [assumption].
+29 succ(7,8).  [assumption].
+30 succ(8,9).  [assumption].
+31 succ(9,10).  [assumption].
+32 succ(10,11).  [assumption].
+33 succ(11,12).  [assumption].
+34 succ(12,13).  [assumption].
+35 succ(13,14).  [assumption].
+36 succ(14,15).  [assumption].
+37 step(0,29).  [assumption].
+38 uses(1,r84).  [assumption].
+39 uses(2,r84).  [assumption].
+40 uses(3,r84).  [assumption].
+41 uses(4,r84).  [assumption].
+42 uses(5,r84).  [assumption].
+43 uses(6,r84).  [assumption].
+44 uses(7,r176).  [assumption].
+45 uses(8,r176).  [assumption].
+46 uses(9,r176).  [assumption].
+47 uses(10,r176).  [assumption].
+48 uses(11,r176).  [assumption].
+49 uses(12,r176).  [assumption].
+50 uses(13,r176).  [assumption].
+51 uses(14,r176).  [assumption].
+52 uses(15,r3).  [assumption].
+53 -step(x,y) | -succ(x,z) | -uses(z,u) | -connected(y,w,u) | step(z,w).  [clausify(1)].
+54 -step(15,18).  [deny(2)].
+55 step(1,28).  [hyper(53,a,37,a,b,22,a,c,38,a,d,7,a)].
+56 step(2,30).  [hyper(53,a,55,a,b,23,a,c,39,a,d,8,a)].
+57 step(3,27).  [hyper(53,a,56,a,b,24,a,c,40,a,d,9,a)].
+58 step(4,31).  [hyper(53,a,57,a,b,25,a,c,41,a,d,10,a)].
+59 step(5,24).  [hyper(53,a,58,a,b,26,a,c,42,a,d,11,a)].
+60 step(6,25).  [hyper(53,a,59,a,b,27,a,c,43,a,d,12,a)].
+61 step(7,26).  [hyper(53,a,60,a,b,28,a,c,44,a,d,13,a)].
+62 step(8,22).  [hyper(53,a,61,a,b,29,a,c,45,a,d,14,a)].
+63 step(9,23).  [hyper(53,a,62,a,b,30,a,c,46,a,d,15,a)].
+64 step(10,16).  [hyper(53,a,63,a,b,31,a,c,47,a,d,16,a)].
+65 step(11,9).  [hyper(53,a,64,a,b,32,a,c,48,a,d,17,a)].
+66 step(12,20).  [hyper(53,a,65,a,b,33,a,c,49,a,d,18,a)].
+67 step(13,21).  [hyper(53,a,66,a,b,34,a,c,50,a,d,19,a)].
+68 step(14,19).  [hyper(53,a,67,a,b,35,a,c,51,a,d,20,a)].
+69 step(15,18).  [hyper(53,a,68,a,b,36,a,c,52,a,d,21,a)].
+70 $F.  [resolve(69,a,54,a)].
+
+============================== end of proof ==========================
+
+============================== STATISTICS ============================
+
+Given=66. Generated=67. Kept=67. proofs=1.
+Usable=66. Sos=0. Demods=0. Limbo=0, Disabled=52. Hints=0.
+Kept_by_rule=0, Deleted_by_rule=0.
+Forward_subsumed=0. Back_subsumed=0.
+Sos_limit_deleted=0. Sos_displaced=0. Sos_removed=0.
+New_demodulators=0 (0 lex), Back_demodulated=0. Back_unit_deleted=0.
+Demod_attempts=0. Demod_rewrites=0.
+Res_instance_prunes=0. Para_instance_prunes=0. Basic_paramod_prunes=0.
+Nonunit_fsub_feature_tests=0. Nonunit_bsub_feature_tests=0.
+Megabytes=0.13.
+User_CPU=0.01, System_CPU=0.00, Wall_clock=0.
+
+============================== end of statistics =====================
+
+============================== end of search =========================
+
+THEOREM PROVED
+
+Exiting with 1 proof.
+
+Process 59707 exit (max_proofs) Tue Dec 30 00:34:46 2025

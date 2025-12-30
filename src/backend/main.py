@@ -384,8 +384,11 @@ def plan_trip(request: TripRequest):
                         break
 
         # Use Mace4 to check existence
+        # Initialize the variables
+        mace4_fname = ""
+        mace4_output = ""
+
         if not path:
-            # Get a candidate path first (BFS) to reduce node set for Mace4
             candidate_path = path_finder.find_optimal_path(
                 graph_builder.connections,
                 start_stop_id,
@@ -394,18 +397,16 @@ def plan_trip(request: TripRequest):
             )
 
             if candidate_path:
-                # Generate FOL for Mace4 with only relevant nodes and optional direct routes
                 fol_mace4 = fol_engine.generate_fol_existence(
                     path=candidate_path,
                     include_direct_routes=request.include_direct_routes
                 )
 
                 mace4_output, mace4_fname = fol_engine.run_mace4(fol_mace4, 
-                                                    timeout=600, #max(30, len(candidate_path) * 2), 
-                                                    save_input=request.save_input
-                                                    )
+                                                                timeout=600, 
+                                                                save_input=request.save_input
+                                                            )
 
-                # If Mace4 finds a model, path exists
                 if "Exiting" in mace4_output or "model" in mace4_output.lower():
                     proof_method = "Mace4 (Path model found)"
                 else:
@@ -416,23 +417,24 @@ def plan_trip(request: TripRequest):
                 proof_method = "BFS (No candidate path)"
                 path = candidate_path
 
+        # Use Prover9 to prove the path
+        prover9_fname = ""
+        prover9_output = ""
 
-        # Verify path with Prover9
-        if path and not direct_route:
-            fol_prover9 = fol_engine.generate_fol_verification(path)
+        if path:
+            if not direct_route:
+                fol_prover9 = fol_engine.generate_fol_verification(path)
 
-            prover9_output, prover9_fname = fol_engine.run_prover9(fol_prover9, 
-                                                    timeout=60, 
-                                                    save_input=request.save_input
-                                                    )
-            
-            if "THEOREM PROVED" in prover9_output:
-                proof_method += " + Prover9 Verified"
-            else:
-                proof_method += " + Prover9 Verification Failed"
+                prover9_output, prover9_fname = fol_engine.run_prover9(fol_prover9, 
+                                                                    timeout=60, 
+                                                                    save_input=request.save_input
+                                                                    )
 
+                if "THEOREM PROVED" in prover9_output:
+                    proof_method += " + Prover9 Verified"
+                else:
+                    proof_method += " + Prover9 Verification Failed"
 
-        # Step 4: Build RouteSegments
         route_segments = []
         total_duration = 0
         for segment in path:
@@ -444,14 +446,13 @@ def plan_trip(request: TripRequest):
             total_duration += duration
 
             route_segments.append(RouteSegment(
-                from_stop=from_stop.get("stop_name", from_stop.get("name", "Unknown")),
-                to_stop=to_stop.get("stop_name", to_stop.get("name", "Unknown")),
-                route_name=str(route.get("route_short_name", route.get("short_name", "Unknown"))),
+                from_stop=from_stop.get("stop_name", from_stop.get("name")),
+                to_stop=to_stop.get("stop_name", to_stop.get("name")),
+                route_name=str(route.get("route_short_name", route.get("short_name"))),
                 route_id=str(segment["route"]),
                 duration_minutes=duration
             ))
 
-        # Calculate transfers and tickets
         transfers = path_finder.count_transfers(path)
         departure_time = datetime.now()
         if request.departure_time and request.departure_time != "now":
@@ -474,8 +475,9 @@ def plan_trip(request: TripRequest):
             tickets_needed=tickets_needed,
             proof_method=proof_method,
             mace4_output=mace4_fname,
-            prover9_output=prover9_fname
+            prover9_output=prover9_fname 
         )
+
 
     except HTTPException:
         raise
