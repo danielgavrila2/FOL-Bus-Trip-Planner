@@ -702,7 +702,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📧 Contact
 
 **Daniel Gavrila**  
-📧 Email: [your-email@example.com](mailto:danielgavrila2@gmail.com)  
+📧 Email: [danielgavrila2@gmail.com](mailto:danielgavrila2@gmail.com)  
 🔗 GitHub: [@danielgavrila2](https://github.com/danielgavrila2)  
 🎓 Project Link: [FOL-Bus-Trip-Planner](https://github.com/danielgavrila2/FOL-Bus-Trip-Planner)
 
